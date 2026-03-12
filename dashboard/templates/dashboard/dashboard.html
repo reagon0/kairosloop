@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KairosLoop Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+        }
+        
+        .status-dot.connected {
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+        }
+        
+        .status-dot.error {
+            background: #f87171;
+            box-shadow: 0 0 10px #f87171;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #2a3f5f;
+        }
+        
+        .card-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        
+        .reading {
+            font-size: 48px;
+            font-weight: 700;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        
+        .unit {
+            font-size: 24px;
+            color: #888;
+            margin-left: 8px;
+        }
+        
+        .deviation {
+            margin-top: 16px;
+            font-size: 18px;
+        }
+        
+        .deviation.in-tolerance {
+            color: #4ade80;
+        }
+        
+        .deviation.out-of-tolerance {
+            color: #f87171;
+        }
+        
+        .nominal {
+            color: #888;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        
+        .log {
+            background: #0f0f1a;
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #222;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #666;
+        }
+        
+        .log-offset {
+            color: #60a5fa;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>KairosLoop Dashboard</h1>
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+    
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Channel 0</div>
+            <div class="reading">
+                <span id="value">--</span>
+                <span class="unit">mm</span>
+            </div>
+            <div class="deviation" id="deviation">Deviation: --</div>
+            <div class="nominal">Nominal: <span id="nominal">--</span> mm</div>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="minValue">--</div>
+                    <div class="stat-label">Min</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="maxValue">--</div>
+                    <div class="stat-label">Max</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="readingCount">0</div>
+                    <div class="stat-label">Readings</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">Event Log</div>
+            <div class="log" id="log">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const wsUrl = `ws://${window.location.host}/ws/gauge/`;
+        let socket = null;
+        let readingCount = 0;
+        let minValue = null;
+        let maxValue = null;
+        let nominal = 25.400; // Default, should come from server
+        let upperTol = 0.010;
+        let lowerTol = -0.010;
+        
+        function connect() {
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function(e) {
+                setStatus('connected', 'Connected');
+                addLog('WebSocket connected');
+            };
+            
+            socket.onclose = function(e) {
+                setStatus('error', 'Disconnected');
+                addLog('WebSocket disconnected, reconnecting...');
+                setTimeout(connect, 2000);
+            };
+            
+            socket.onerror = function(e) {
+                setStatus('error', 'Error');
+                addLog('WebSocket error');
+            };
+            
+            socket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+                handleMessage(data);
+            };
+        }
+        
+        function handleMessage(data) {
+            switch(data.type) {
+                case 'connection_established':
+                    addLog(`Connected to channel: ${data.channel}`);
+                    break;
+                    
+                case 'gauge_reading':
+                    updateReading(data);
+                    break;
+                    
+                case 'gauge_offset':
+                    addLog(`OFFSET T${data.tool_number}: ${data.offset_value.toFixed(6)} ${data.success ? '✓' : '✗'}`, 'log-offset');
+                    break;
+                    
+                case 'gauge_status':
+                    addLog(`Status: ${data.status} - ${data.message}`);
+                    break;
+            }
+        }
+        
+        function updateReading(data) {
+            const value = data.value;
+            const deviation = value - nominal;
+            const inTolerance = deviation >= lowerTol && deviation <= upperTol;
+            
+            // Update display
+            document.getElementById('value').textContent = value.toFixed(4);
+            document.getElementById('nominal').textContent = nominal.toFixed(4);
+            
+            const devEl = document.getElementById('deviation');
+            devEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(4)} mm`;
+            devEl.className = 'deviation ' + (inTolerance ? 'in-tolerance' : 'out-of-tolerance');
+            
+            // Update stats
+            readingCount++;
+            if (minValue === null || value < minValue) minValue = value;
+            if (maxValue === null || value > maxValue) maxValue = value;
+            
+            document.getElementById('readingCount').textContent = readingCount;
+            document.getElementById('minValue').textContent = minValue.toFixed(4);
+            document.getElementById('maxValue').textContent = maxValue.toFixed(4);
+        }
+        
+        function setStatus(state, text) {
+            const dot = document.getElementById('statusDot');
+            dot.className = 'status-dot ' + state;
+            document.getElementById('statusText').textContent = text;
+        }
+        
+        function addLog(message, className = '') {
+            const log = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + className;
+            entry.innerHTML = `<span class="log-time">${time}</span> ${message}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep log size manageable
+            while (log.children.length > 100) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        // Connect on page load
+        connect();
+    </script>
+</body>
+</html>
