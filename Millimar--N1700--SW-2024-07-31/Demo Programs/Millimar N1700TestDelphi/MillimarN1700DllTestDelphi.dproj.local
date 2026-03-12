@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.387,=C:\Users\so\Documents\Embarcadero\Studio\Projekte\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.686,=C:\Users\so\Documents\Embarcadero\Studio\Projekte\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.416,C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700TestDelphi.dfm=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\DllTestMain.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.412,C:\Users\so\Documents\Embarcadero\Studio\Projekte\Unit1.pas=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700TestDelphi.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.416,C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700TestDelphi.pas=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\DllTestMain.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.412,C:\Users\so\Documents\Embarcadero\Studio\Projekte\Unit1.dfm=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700TestDelphi.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.170,C:\Users\so\Documents\Embarcadero\Studio\Projekte\Project1.dproj=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700DllTestDelphi.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.873,=C:\D2016-10.1\Millimar N1700 20200211 DLL Test Delphi\DllTestMain.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.062,C:\D2016-10.1\Millimar N1700 20200211 DLL Test Delphi\MillimarN1700DllTestDelphi.dproj=C:\D2016-10.1\Millimar N1700 DLL Test Delphi\MillimarN1700DllTestDelphi.dproj</Transaction>
+  </Transactions>
+</BorlandProject>

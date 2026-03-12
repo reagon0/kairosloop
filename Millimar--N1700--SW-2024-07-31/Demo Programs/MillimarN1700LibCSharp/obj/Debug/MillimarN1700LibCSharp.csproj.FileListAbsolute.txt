@@ -1,0 +1,4 @@
+C:\Users\so\Documents\Visual Studio 2013\Projects\MillimarN1700LibCSharp\bin\Debug\MillimarN1700LibCSharp.dll
+C:\Users\so\Documents\Visual Studio 2013\Projects\MillimarN1700LibCSharp\bin\Debug\MillimarN1700LibCSharp.pdb
+C:\Users\so\Documents\Visual Studio 2013\Projects\MillimarN1700LibCSharp\obj\Debug\MillimarN1700LibCSharp.dll
+C:\Users\so\Documents\Visual Studio 2013\Projects\MillimarN1700LibCSharp\obj\Debug\MillimarN1700LibCSharp.pdb
