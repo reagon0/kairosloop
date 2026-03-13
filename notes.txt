@@ -1,0 +1,120 @@
+
+
+To Do:
+Create Audit Trail
+Simple Dashboard
+Offset Configurator
+
+You need a trigger to say "this is a new part, capture the measurement."
+
+Tool Library?
+Part Library?
+
+
+
+
+┌─────────────────────────────────────────────────────────────┐
+│                        PAGES                                 │
+└─────────────────────────────────────────────────────────────┘
+
+DASHBOARD (Operator View)
+├── Live feature values
+├── Tolerance status (green/yellow/red)
+├── Compensation status (active, accumulated offset)
+├── History grid (last N parts)
+└── Trigger capture / master buttons
+
+MEASUREMENT CONFIG
+├── Gauges
+│   └── Channels
+├── Features
+│   ├── List features
+│   ├── Add/Edit feature
+│   │   ├── Name, type
+│   │   ├── Inputs (A=Channel, B=Channel)
+│   │   ├── Formula
+│   │   └── Tolerance (nominal, upper, lower)
+│   └── Delete feature
+
+COMPENSATION CONFIG
+├── List compensation rules
+├── Add/Edit rule
+│   ├── Feature (select)
+│   ├── Controller (select)
+│   ├── Tool number, offset register
+│   ├── Trigger threshold
+│   ├── Wear limit, max per cycle
+│   └── Active toggle
+└── Delete rule
+
+CONTROLLER CONFIG
+├── Machine
+├── Controllers
+│   ├── Connection (host, port, type)
+│   ├── Signals (cycle complete, master)
+│   └── Offset settings (resolution, method)
+└── (future: tool life, redundant tools)
+
+DATA LOG
+├── Measurement log
+├── Offset log
+├── Cpk / SPC
+└── Export
+
+─────────────────────────────────────────────────────────────
+
+NAV:
+[ Dashboard ] [ Measurement ] [ Compensation ] [ Controller ] [ Data Log ]
+
+
+CompensationConfig (one row = one rule)
+┌────────────────────────────────────────────────────────────────┐
+│ Feature: Main OD                                               │
+│ Controller: Tsugami B0205                                      │
+│ Tool: T01                                                      │
+│ Offset Register: D01                                           │
+│                                                                │
+│ Trigger Threshold: ±0.005 (compensate when deviation exceeds)  │
+│ Wear Limit: 0.050 (change tool when accumulated offset hits)   │
+│ Max Per Cycle: 0.010 (safety cap per adjustment)               │
+│ Active: ✓                                                      │
+│                                                                │
+│ Status: Accumulated = 0.023 / 0.050                            │
+└────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ MEASUREMENT CONFIG                                           │
+│ "What am I measuring and how?"                               │
+├─────────────────────────────────────────────────────────────┤
+│ GaugeConfig      - driver, connection                        │
+│ ChannelConfig    - which channels, names                     │
+│ Feature          - formula, inputs, tolerance                │
+│ FeatureInput     - A=Channel, B=Channel                      │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ COMPENSATION CONFIG                                          │
+│ "When and how much do I compensate?"                         │
+├─────────────────────────────────────────────────────────────┤
+│ CompensationConfig                                           │
+│   - feature (FK)                                             │
+│   - controller (FK)                                          │
+│   - tool_number, offset_register                             │
+│   - trigger_threshold                                        │
+│   - wear_limit, max_per_cycle                                │
+│   - active                                                   │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ CONTROLLER CONFIG                                            │
+│ "How do I talk to the machine?"                              │
+├─────────────────────────────────────────────────────────────┤
+│ ControllerConfig                                             │
+│   - type (Fanuc, Siemens, etc.)                              │
+│   - host, port                                               │
+│   - cycle_complete_signal                                    │
+│   - master_signal                                            │
+│   - offset_method                                            │
+│   - offset_resolution, max_offset_per_cycle                  │
+└─────────────────────────────────────────────────────────────┘

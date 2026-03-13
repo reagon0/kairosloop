@@ -1,0 +1,22 @@
+{% extends "dashboard/setup_base_form.html" %}
+
+{% block title %}Delete {{ object_type }} — KairosLoop{% endblock %}
+{% block page_title %}Delete {{ object_type }}{% endblock %}
+{% block page_subtitle %}This action cannot be undone{% endblock %}
+
+{% block form_content %}
+<div class="form-card">
+    <p style="margin-bottom: 20px; font-size: 14px;">
+        Are you sure you want to delete <strong>{{ object }}</strong>?
+    </p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-actions" style="border-top: none; padding-top: 0; margin-top: 0;">
+            <button type="submit" class="btn btn-danger">Yes, Delete</button>
+            <a href="{% url 'setup' %}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,374 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}System Setup — KairosLoop{% endblock %}
+{% block nav_setup %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+        /* LAYOUT */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .page-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* SECTIONS */
+        .section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dark);
+            margin-bottom: 24px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+        
+        .section-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+        
+        .section-body {
+            padding: 20px;
+        }
+        
+        /* CARDS */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dark);
+            padding: 16px;
+            transition: border-color 0.15s ease;
+        }
+        
+        .card:hover {
+            border-color: var(--border-light);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .card-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+        
+        .card-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            padding: 3px 6px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dark);
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        
+        .card-badge.active {
+            color: var(--green);
+            border-color: var(--green-dim);
+        }
+        
+        .card-body {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .card-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-dark);
+        }
+        
+        .card-row:last-child {
+            border-bottom: none;
+        }
+        
+        .card-label {
+            color: var(--text-dim);
+        }
+        
+        .card-value {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-dark);
+        }
+        
+        /* CHANNEL LIST */
+        .channel-list {
+            margin-top: 12px;
+        }
+        
+        .channel-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+        
+        .channel-item:last-child {
+            border-bottom: none;
+        }
+        
+        .channel-index {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            width: 40px;
+        }
+        
+        .channel-name {
+            flex: 1;
+            color: var(--text-primary);
+        }
+        
+        .channel-status {
+            font-size: 10px;
+            color: var(--green);
+        }
+        
+        .channel-status.disabled {
+            color: var(--text-dim);
+        }
+        
+        /* MACHINE INFO */
+        .machine-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        
+        .info-item {
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dark);
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+        }
+        
+        .empty-state p {
+            margin-bottom: 16px;
+        }
+        
+        @media (max-width: 768px) {
+            .machine-info {
+                grid-template-columns: 1fr;
+            }
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <!-- HEADER -->
+        <div class="page-header">
+            <h1 class="page-title">System Setup</h1>
+            <p class="page-subtitle">Configure machine, gauges, channels, and controllers</p>
+        </div>
+        
+        <!-- MACHINE SECTION -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">Machine</h2>
+                <a href="{% url 'setup_machine' %}" class="btn btn-sm">Edit</a>
+            </div>
+            <div class="section-body">
+                <div class="machine-info">
+                    <div class="info-item">
+                        <div class="info-label">Name</div>
+                        <div class="info-value">{{ machine.name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Location</div>
+                        <div class="info-value">{{ machine.location|default:"—" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value" style="color: var(--green);">● Active</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- GAUGES SECTION -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">Gauges & Channels</h2>
+                <a href="{% url 'setup_gauge_add' %}" class="btn btn-primary btn-sm">+ Add Gauge</a>
+            </div>
+            <div class="section-body">
+                {% if gauges %}
+                <div class="card-grid">
+                    {% for gauge in gauges %}
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">{{ gauge.name }}</div>
+                                <div class="card-subtitle">N1700 {% if gauge.use_64bit %}64-bit{% else %}32-bit{% endif %}</div>
+                            </div>
+                            <span class="card-badge {% if gauge.active %}active{% endif %}">
+                                {% if gauge.active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-row">
+                                <span class="card-label">Filter</span>
+                                <span class="card-value">{{ gauge.get_filter_level_display }}</span>
+                            </div>
+                            <div class="card-row">
+                                <span class="card-label">Channels</span>
+                                <span class="card-value">{{ gauge.channels.count }}</span>
+                            </div>
+                            
+                            {% if gauge.channels.exists %}
+                            <div class="channel-list">
+                                {% for channel in gauge.channels.all %}
+                                <div class="channel-item">
+                                    <span class="channel-index">CH{{ channel.display_index }}</span>
+                                    <span class="channel-name">{{ channel.name }}</span>
+                                    <span class="channel-status {% if not channel.enabled %}disabled{% endif %}">
+                                        {% if channel.enabled %}●{% else %}○{% endif %}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-actions">
+                            <a href="{% url 'setup_gauge_edit' gauge.id %}" class="btn btn-sm">Edit</a>
+                            <a href="{% url 'setup_channel_add' gauge.id %}" class="btn btn-sm">+ Channel</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No gauges configured yet.</p>
+                    <a href="{% url 'setup_gauge_add' %}" class="btn btn-primary">+ Add First Gauge</a>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        
+        <!-- CONTROLLERS SECTION -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">Controllers</h2>
+                <a href="{% url 'setup_controller_add' %}" class="btn btn-primary btn-sm">+ Add Controller</a>
+            </div>
+            <div class="section-body">
+                {% if controllers %}
+                <div class="card-grid">
+                    {% for controller in controllers %}
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">{{ controller.name }}</div>
+                                <div class="card-subtitle">{{ controller.get_controller_type_display }}</div>
+                            </div>
+                            <span class="card-badge {% if controller.active %}active{% endif %}">
+                                {% if controller.active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            {% if controller.host %}
+                            <div class="card-row">
+                                <span class="card-label">Host</span>
+                                <span class="card-value">{{ controller.host }}</span>
+                            </div>
+                            {% endif %}
+                            {% if controller.port %}
+                            <div class="card-row">
+                                <span class="card-label">Port</span>
+                                <span class="card-value">{{ controller.port }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-actions">
+                            <a href="{% url 'setup_controller_edit' controller.id %}" class="btn btn-sm">Edit</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <p>No controllers configured yet.</p>
+                    <a href="{% url 'setup_controller_add' %}" class="btn btn-primary">+ Add First Controller</a>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+{% endblock %}

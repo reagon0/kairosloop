@@ -3,8 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KairosLoop Dashboard</title>
+    <title>KairosLoop — Multi-Channel Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* Industrial palette — machined steel, warning colors */
+            --bg-primary: #0a0a0a;
+            --bg-panel: #141414;
+            --bg-channel: #1a1a1a;
+            --bg-recessed: #0d0d0d;
+            --border-dark: #222;
+            --border-light: #333;
+            --text-primary: #e8e8e8;
+            --text-secondary: #888;
+            --text-dim: #555;
+            
+            /* Status colors — high contrast industrial */
+            --green-nominal: #00ff88;
+            --green-dim: #00cc6a;
+            --yellow-warn: #ffcc00;
+            --red-alarm: #ff3333;
+            --blue-info: #0099ff;
+            
+            /* Deviation bar */
+            --bar-bg: #1a1a1a;
+            --bar-nominal: #00ff88;
+            --bar-warn: #ffcc00;
+            --bar-alarm: #ff3333;
+        }
+        
         * {
             box-sizing: border-box;
             margin: 0;
@@ -12,289 +41,1204 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-            padding: 20px;
+            overflow-x: hidden;
         }
         
+        /* ============================================
+           HEADER — Control panel style
+           ============================================ */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
+            padding: 12px 20px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-dark);
         }
         
-        h1 {
-            font-size: 24px;
-            font-weight: 600;
-        }
-        
-        .status {
+        .header-left {
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #666;
-        }
-        
-        .status-dot.connected {
-            background: #4ade80;
-            box-shadow: 0 0 10px #4ade80;
-        }
-        
-        .status-dot.error {
-            background: #f87171;
-            box-shadow: 0 0 10px #f87171;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
         }
         
-        .card {
-            background: #16213e;
-            border-radius: 12px;
-            padding: 24px;
-            border: 1px solid #2a3f5f;
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            text-decoration: none;
         }
         
-        .card-title {
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 8px;
+        .logo span {
+            color: var(--green-nominal);
         }
         
-        .reading {
-            font-size: 48px;
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .nav-link {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-recessed);
+            border-color: var(--border-dark);
+        }
+        
+        .nav-link.active {
+            color: var(--text-primary);
+            background: var(--bg-channel);
+            border-color: var(--border-dark);
+        }
+        
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            border-radius: 2px;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        
+        .status-indicator.connected {
+            background: var(--green-nominal);
+            box-shadow: 0 0 8px var(--green-nominal);
+        }
+        
+        .status-indicator.error {
+            background: var(--red-alarm);
+            box-shadow: 0 0 8px var(--red-alarm);
+            animation: pulse-error 1s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-error {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header-stat {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 6px 10px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+        }
+        
+        .header-stat strong {
+            color: var(--text-secondary);
+        }
+        
+        /* ============================================
+           TOOLBAR — View controls
+           ============================================ */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-dark);
+        }
+        
+        .view-controls {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .view-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 6px 12px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .view-btn:hover {
+            background: var(--bg-channel);
+            border-color: var(--border-light);
+        }
+        
+        .view-btn.active {
+            background: var(--border-light);
+            color: var(--text-primary);
+            border-color: var(--border-light);
+        }
+        
+        .toolbar-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 12px;
+            border-left: 1px solid var(--border-dark);
+        }
+        
+        .toolbar-group:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+        
+        .toolbar-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .toolbar-select {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 5px 8px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-secondary);
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23888' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            padding-right: 20px;
+        }
+        
+        .toolbar-select:hover {
+            border-color: var(--border-light);
+            color: var(--text-primary);
+        }
+        
+        .toolbar-select:focus {
+            outline: none;
+            border-color: var(--blue-info);
+        }
+        
+        .action-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 6px 14px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .action-btn:hover {
+            background: var(--bg-channel);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+        }
+        
+        .action-btn.primary {
+            background: var(--green-dim);
+            border-color: var(--green-nominal);
+            color: #000;
+        }
+        
+        .action-btn.primary:hover {
+            background: var(--green-nominal);
+        }
+        
+        .action-btn.master {
+            background: var(--blue-info);
+            border-color: var(--blue-info);
+            color: #000;
+        }
+        
+        .action-btn.master:hover {
+            background: #33aaff;
+        }
+        
+        /* ============================================
+           CHANNEL GRID
+           ============================================ */
+        .channel-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border-dark);
+            padding: 1px;
+        }
+        
+        .channel-grid.grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .channel-grid.grid-4 { grid-template-columns: repeat(2, 1fr); }
+        .channel-grid.grid-8 { grid-template-columns: repeat(4, 1fr); }
+        .channel-grid.grid-16 { grid-template-columns: repeat(4, 1fr); }
+        
+        /* ============================================
+           CHANNEL CARD
+           ============================================ */
+        .channel-card {
+            background: var(--bg-channel);
+            padding: 16px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .channel-card.disabled {
+            opacity: 0.4;
+        }
+        
+        .channel-card.alarm {
+            background: linear-gradient(135deg, #1a0a0a 0%, var(--bg-channel) 100%);
+            border-left: 2px solid var(--red-alarm);
+        }
+        
+        .channel-card.warn {
+            border-left: 2px solid var(--yellow-warn);
+        }
+        
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .channel-header-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .channel-master-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .channel-master-btn:hover {
+            background: var(--blue-info);
+            border-color: var(--blue-info);
+            color: #000;
+        }
+        
+        .channel-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .channel-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        
+        .channel-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            padding: 3px 6px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        
+        .channel-status.ok {
+            color: var(--green-nominal);
+            border-color: var(--green-dim);
+        }
+        
+        .channel-status.warn {
+            color: var(--yellow-warn);
+            border-color: var(--yellow-warn);
+        }
+        
+        .channel-status.alarm {
+            color: var(--red-alarm);
+            border-color: var(--red-alarm);
+            animation: pulse-error 1s ease-in-out infinite;
+        }
+        
+        /* Main reading display */
+        .reading-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .reading-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 36px;
             font-weight: 700;
-            font-family: 'SF Mono', 'Consolas', monospace;
+            line-height: 1;
+            color: var(--text-primary);
+            letter-spacing: -1px;
         }
         
-        .unit {
-            font-size: 24px;
-            color: #888;
-            margin-left: 8px;
-        }
-        
-        .deviation {
-            margin-top: 16px;
-            font-size: 18px;
-        }
-        
-        .deviation.in-tolerance {
-            color: #4ade80;
-        }
-        
-        .deviation.out-of-tolerance {
-            color: #f87171;
-        }
-        
-        .nominal {
-            color: #888;
+        .reading-value .unit {
             font-size: 14px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-left: 4px;
+        }
+        
+        .reading-value.alarm {
+            color: var(--red-alarm);
+        }
+        
+        .reading-value.warn {
+            color: var(--yellow-warn);
+        }
+        
+        .master-offset {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--blue-info);
+            margin-top: 4px;
+            height: 14px;
+        }
+        
+        .master-offset.active {
+            color: var(--blue-info);
+        }
+        
+        /* Deviation display */
+        .deviation-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-top: 8px;
         }
         
-        .log {
-            background: #0f0f1a;
-            border-radius: 8px;
-            padding: 16px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: 'SF Mono', 'Consolas', monospace;
+        .deviation-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .deviation-value.positive { color: var(--red-alarm); }
+        .deviation-value.negative { color: var(--blue-info); }
+        .deviation-value.nominal { color: var(--green-nominal); }
+        
+        /* Deviation bar — the key visual */
+        .deviation-bar-container {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .deviation-bar-center {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--text-dim);
+        }
+        
+        .deviation-bar-fill {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            background: var(--green-nominal);
+            transition: all 0.1s ease;
+        }
+        
+        .deviation-bar-fill.warn {
+            background: var(--yellow-warn);
+        }
+        
+        .deviation-bar-fill.alarm {
+            background: var(--red-alarm);
+        }
+        
+        /* Tolerance markers */
+        .deviation-bar-limit {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: var(--yellow-warn);
+            opacity: 0.6;
+        }
+        
+        /* Stats row */
+        .stats-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-dark);
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* ============================================
+           FOOTER — System info
+           ============================================ */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 20px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-dark);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        
+        .footer-left {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .footer-item strong {
+            color: var(--text-secondary);
+        }
+        
+        /* ============================================
+           LOG PANEL (collapsible)
+           ============================================ */
+        .log-panel {
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-dark);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .log-panel.open {
+            max-height: 200px;
+        }
+        
+        .log-content {
+            padding: 12px 20px;
+            height: 180px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
         }
         
         .log-entry {
             padding: 4px 0;
-            border-bottom: 1px solid #222;
-        }
-        
-        .log-entry:last-child {
-            border-bottom: none;
+            border-bottom: 1px solid var(--border-dark);
+            display: flex;
+            gap: 12px;
         }
         
         .log-time {
-            color: #666;
+            color: var(--text-dim);
+            flex-shrink: 0;
         }
         
-        .log-offset {
-            color: #60a5fa;
+        .log-channel {
+            color: var(--blue-info);
+            flex-shrink: 0;
+            width: 50px;
         }
         
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 16px;
+        .log-message {
+            color: var(--text-secondary);
         }
         
-        .stat {
-            text-align: center;
+        .log-entry.offset .log-message {
+            color: var(--green-nominal);
         }
         
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
+        .log-entry.error .log-message {
+            color: var(--red-alarm);
         }
         
-        .stat-label {
-            font-size: 12px;
-            color: #888;
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 900px) {
+            .channel-grid.grid-8,
+            .channel-grid.grid-16 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .reading-value {
+                font-size: 28px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .channel-grid.grid-4,
+            .channel-grid.grid-8,
+            .channel-grid.grid-16 {
+                grid-template-columns: 1fr;
+            }
+            
+            .toolbar {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>KairosLoop Dashboard</h1>
-        <div class="status">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Connecting...</span>
+    <!-- HEADER -->
+    <header class="header">
+        <div class="header-left">
+            <a href="/dashboard/" class="logo">KAIROS<span>LOOP</span></a>
+            <div class="nav-links">
+                <a href="/dashboard/" class="nav-link active">Dashboard</a>
+                <a href="/dashboard/measurements/" class="nav-link">Measurements</a>
+                <a href="/dashboard/setup/" class="nav-link">Setup</a>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span class="status-text" id="statusText">Connecting</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="header-stat">RATE: <strong id="pollRate">--</strong> Hz</div>
+            <div class="header-stat">READINGS: <strong id="totalReadings">0</strong></div>
+            <div class="header-stat" id="clock">--:--:--</div>
+        </div>
+    </header>
+    
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <div class="view-controls">
+            <div class="toolbar-group" style="border-left: none; padding-left: 0;">
+                <span class="toolbar-label">Gauge</span>
+                <select class="toolbar-select" id="gaugeSelect">
+                    {% for gauge in gauges %}
+                    <option value="{{ gauge.id }}" {% if gauge == selected_gauge %}selected{% endif %}>{{ gauge.name }}</option>
+                    {% empty %}
+                    <option value="">No gauges configured</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="view-btn" data-view="2">2 CH</button>
+            <button class="view-btn active" data-view="4">4 CH</button>
+            <button class="view-btn" data-view="8">8 CH</button>
+            <button class="view-btn" data-view="16">16 CH</button>
+        </div>
+        <div class="toolbar-actions">
+            <div class="toolbar-group">
+                <span class="toolbar-label">Filter</span>
+                <select class="toolbar-select" id="filterSelect">
+                    <option value="0" {% if filter_level == 0 %}selected{% endif %}>Off (Raw)</option>
+                    <option value="1" {% if filter_level == 1 %}selected{% endif %}>2 samples</option>
+                    <option value="2" {% if filter_level == 2 %}selected{% endif %}>4 samples</option>
+                    <option value="3" {% if filter_level == 3 %}selected{% endif %}>8 samples</option>
+                    <option value="4" {% if filter_level == 4 %}selected{% endif %}>16 samples</option>
+                    <option value="5" {% if filter_level == 5 %}selected{% endif %}>32 samples</option>
+                    <option value="6" {% if filter_level == 6 %}selected{% endif %}>64 samples</option>
+                </select>
+            </div>
+            <div class="toolbar-group">
+                <button class="action-btn master" id="btnMaster">⊙ MASTER ALL</button>
+                <button class="action-btn" id="btnClearMaster">CLEAR</button>
+            </div>
+            <div class="toolbar-group">
+                <button class="action-btn" id="btnReset">RESET STATS</button>
+                <button class="action-btn" id="btnLog">LOG</button>
+            </div>
         </div>
     </div>
     
-    <div class="grid">
-        <div class="card">
-            <div class="card-title">Channel 0</div>
-            <div class="reading">
-                <span id="value">--</span>
-                <span class="unit">mm</span>
-            </div>
-            <div class="deviation" id="deviation">Deviation: --</div>
-            <div class="nominal">Nominal: <span id="nominal">--</span> mm</div>
-            
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value" id="minValue">--</div>
-                    <div class="stat-label">Min</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="maxValue">--</div>
-                    <div class="stat-label">Max</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="readingCount">0</div>
-                    <div class="stat-label">Readings</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-title">Event Log</div>
-            <div class="log" id="log">
-            </div>
-        </div>
+    <!-- CHANNEL GRID -->
+    <div class="channel-grid grid-4" id="channelGrid">
+        <!-- Channels will be generated by JS -->
     </div>
     
+    <!-- EMPTY STATE -->
+    {% if not selected_gauge %}
+    <div id="emptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-dim);">
+        <p style="font-size: 16px; margin-bottom: 12px;">No gauges configured</p>
+        <a href="{% url 'setup' %}" style="color: var(--blue-info); text-decoration: none;">Go to Setup →</a>
+    </div>
+    {% elif not channels_json or channels_json == '[]' %}
+    <div id="emptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-dim);">
+        <p style="font-size: 16px; margin-bottom: 12px;">No channels configured for {{ selected_gauge.name }}</p>
+        <a href="{% url 'setup_gauge_edit' selected_gauge.id %}" style="color: var(--blue-info); text-decoration: none;">Add Channels →</a>
+    </div>
+    {% endif %}
+    
+    <!-- LOG PANEL -->
+    <div class="log-panel" id="logPanel">
+        <div class="log-content" id="logContent"></div>
+    </div>
+    
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-left">
+            <div class="footer-item">MACHINE: <strong>{{ machine.name }}</strong></div>
+            <div class="footer-item">GAUGE: <strong id="gaugeInfo">{% if selected_gauge %}{{ selected_gauge.name }}{% else %}--{% endif %}</strong></div>
+            <div class="footer-item">CHANNELS: <strong id="channelCount">--</strong></div>
+            <div class="footer-item">LAST: <strong id="lastReading">--</strong></div>
+        </div>
+        <div class="footer-right">
+            <span>KAIROSLOOP v0.1</span>
+        </div>
+    </footer>
+
+    <!-- Server data passed to JavaScript -->
+    <script id="server-data" type="application/json">
+    {
+        "channels": {{ channels_json|safe }},
+        "selectedGaugeId": {% if selected_gauge %}{{ selected_gauge.id }}{% else %}null{% endif %},
+        "filterLevel": {% if filter_level %}{{ filter_level }}{% else %}5{% endif %}
+    }
+    </script>
+
     <script>
-        const wsUrl = `ws://${window.location.host}/ws/gauge/`;
-        let socket = null;
-        let readingCount = 0;
-        let minValue = null;
-        let maxValue = null;
-        let nominal = 25.400; // Default, should come from server
-        let upperTol = 0.010;
-        let lowerTol = -0.010;
+        // ============================================
+        // CONFIGURATION (from database)
+        // ============================================
+        const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
+        const CHANNELS_CONFIG = SERVER_DATA.channels;
+        const SELECTED_GAUGE_ID = SERVER_DATA.selectedGaugeId;
         
+        const CONFIG = {
+            wsUrl: `ws://${window.location.host}/ws/gauge/`,
+            reconnectDelay: 2000,
+            defaultTolerance: { upper: 0.010, lower: -0.010 }
+        };
+        
+        // ============================================
+        // STATE
+        // ============================================
+        const state = {
+            socket: null,
+            connected: false,
+            currentView: 4,
+            totalReadings: 0,
+            channels: {},
+            channelsList: [],  // Ordered list of channel indices for current gauge
+            logOpen: false,
+            filterLevel: SERVER_DATA.filterLevel,
+            selectedGaugeId: SELECTED_GAUGE_ID
+        };
+        
+        // Initialize channel state from database config
+        function initChannelsFromConfig() {
+            state.channels = {};
+            state.channelsList = [];
+            
+            // Filter channels for selected gauge
+            const gaugeChannels = CHANNELS_CONFIG.filter(ch => 
+                state.selectedGaugeId === null || ch.gauge_id === state.selectedGaugeId
+            );
+            
+            gaugeChannels.forEach(ch => {
+                state.channels[ch.channel_index] = {
+                    id: ch.id,
+                    gaugeId: ch.gauge_id,
+                    gaugeName: ch.gauge_name,
+                    enabled: true,
+                    name: ch.name,
+                    displayName: ch.display_name,
+                    nominal: 25.400,  // TODO: get from Feature config
+                    tolerance: { ...CONFIG.defaultTolerance },
+                    value: null,
+                    rawValue: null,
+                    masterOffset: 0.0,
+                    min: null,
+                    max: null,
+                    count: 0,
+                    lastUpdate: null
+                };
+                state.channelsList.push(ch.channel_index);
+            });
+        }
+        
+        // ============================================
+        // DOM REFERENCES
+        // ============================================
+        const dom = {
+            statusIndicator: document.getElementById('statusIndicator'),
+            statusText: document.getElementById('statusText'),
+            pollRate: document.getElementById('pollRate'),
+            totalReadings: document.getElementById('totalReadings'),
+            clock: document.getElementById('clock'),
+            channelGrid: document.getElementById('channelGrid'),
+            logPanel: document.getElementById('logPanel'),
+            logContent: document.getElementById('logContent'),
+            channelCount: document.getElementById('channelCount'),
+            lastReading: document.getElementById('lastReading'),
+            moduleInfo: document.getElementById('moduleInfo')
+        };
+        
+        // ============================================
+        // CHANNEL RENDERING
+        // ============================================
+        function createChannelCard(index) {
+            const ch = state.channels[index];
+            const displayNum = index + 1;  // 0-indexed internally, 1-indexed display
+            const card = document.createElement('div');
+            card.className = 'channel-card' + (ch.enabled ? '' : ' disabled');
+            card.id = `channel-${index}`;
+            card.innerHTML = `
+                <div class="channel-header">
+                    <div>
+                        <div class="channel-id">CH ${displayNum}</div>
+                        <div class="channel-name">${ch.name}</div>
+                    </div>
+                    <div class="channel-header-right">
+                        <button class="channel-master-btn" data-channel="${index}" title="Master this channel">⊙</button>
+                        <div class="channel-status" id="status-${index}">--</div>
+                    </div>
+                </div>
+                <div class="reading-display">
+                    <div class="reading-value" id="value-${index}">
+                        --<span class="unit">mm</span>
+                    </div>
+                    <div class="master-offset" id="offset-${index}"></div>
+                    <div class="deviation-row">
+                        <span class="deviation-value" id="dev-${index}">Δ --</span>
+                        <div class="deviation-bar-container">
+                            <div class="deviation-bar-limit" id="limit-lower-${index}" style="left: 25%;"></div>
+                            <div class="deviation-bar-center"></div>
+                            <div class="deviation-bar-limit" id="limit-upper-${index}" style="left: 75%;"></div>
+                            <div class="deviation-bar-fill" id="bar-${index}" style="left: 50%; width: 0;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-label">Min</span>
+                        <span class="stat-value" id="min-${index}">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Max</span>
+                        <span class="stat-value" id="max-${index}">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Δ Range</span>
+                        <span class="stat-value" id="range-${index}">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Count</span>
+                        <span class="stat-value" id="count-${index}">0</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+        
+        function renderChannelGrid() {
+            dom.channelGrid.innerHTML = '';
+            const visibleCount = Math.min(state.currentView, state.channelsList.length);
+            
+            // Render channels from the channelsList (database order)
+            for (let i = 0; i < visibleCount; i++) {
+                const channelIndex = state.channelsList[i];
+                if (state.channels[channelIndex]) {
+                    dom.channelGrid.appendChild(createChannelCard(channelIndex));
+                }
+            }
+            
+            // Update view button active states
+            const actualCount = state.channelsList.length;
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                const viewCount = parseInt(btn.dataset.view);
+                if (viewCount > actualCount) {
+                    btn.style.opacity = '0.5';
+                } else {
+                    btn.style.opacity = '1';
+                }
+            });
+            
+            dom.channelCount.textContent = visibleCount;
+        }
+        
+        function updateChannelDisplay(index, data) {
+            const ch = state.channels[index];
+            if (!ch || !ch.enabled) return;
+            
+            // Store raw value and apply master offset
+            const rawValue = data.value;
+            const value = rawValue - ch.masterOffset;
+            const deviation = value - ch.nominal;
+            const inTolerance = deviation >= ch.tolerance.lower && deviation <= ch.tolerance.upper;
+            const isWarn = Math.abs(deviation) > Math.abs(ch.tolerance.upper) * 0.8;
+            
+            // Update state
+            ch.rawValue = rawValue;
+            ch.value = value;
+            ch.count++;
+            ch.lastUpdate = new Date();
+            if (ch.min === null || value < ch.min) ch.min = value;
+            if (ch.max === null || value > ch.max) ch.max = value;
+            
+            state.totalReadings++;
+            
+            // Update DOM
+            const card = document.getElementById(`channel-${index}`);
+            if (!card) return;
+            
+            // Value
+            const valueEl = document.getElementById(`value-${index}`);
+            valueEl.innerHTML = `${value.toFixed(4)}<span class="unit">mm</span>`;
+            valueEl.className = 'reading-value' + (!inTolerance ? ' alarm' : isWarn ? ' warn' : '');
+            
+            // Master offset indicator
+            const offsetEl = document.getElementById(`offset-${index}`);
+            if (ch.masterOffset !== 0) {
+                offsetEl.textContent = `MASTER: ${ch.masterOffset >= 0 ? '+' : ''}${ch.masterOffset.toFixed(4)}`;
+                offsetEl.className = 'master-offset active';
+            } else {
+                offsetEl.textContent = '';
+                offsetEl.className = 'master-offset';
+            }
+            
+            // Deviation
+            const devEl = document.getElementById(`dev-${index}`);
+            devEl.textContent = `Δ ${deviation >= 0 ? '+' : ''}${deviation.toFixed(4)}`;
+            devEl.className = 'deviation-value ' + (deviation > 0 ? 'positive' : deviation < 0 ? 'negative' : 'nominal');
+            
+            // Status badge
+            const statusEl = document.getElementById(`status-${index}`);
+            if (!inTolerance) {
+                statusEl.textContent = 'ALARM';
+                statusEl.className = 'channel-status alarm';
+                card.className = 'channel-card alarm';
+            } else if (isWarn) {
+                statusEl.textContent = 'WARN';
+                statusEl.className = 'channel-status warn';
+                card.className = 'channel-card warn';
+            } else {
+                statusEl.textContent = 'OK';
+                statusEl.className = 'channel-status ok';
+                card.className = 'channel-card';
+            }
+            
+            // Deviation bar
+            const bar = document.getElementById(`bar-${index}`);
+            const maxDev = Math.max(Math.abs(ch.tolerance.lower), Math.abs(ch.tolerance.upper)) * 2;
+            const percent = (deviation / maxDev) * 50;
+            const clampedPercent = Math.max(-50, Math.min(50, percent));
+            
+            if (clampedPercent >= 0) {
+                bar.style.left = '50%';
+                bar.style.width = clampedPercent + '%';
+            } else {
+                bar.style.left = (50 + clampedPercent) + '%';
+                bar.style.width = Math.abs(clampedPercent) + '%';
+            }
+            bar.className = 'deviation-bar-fill' + (!inTolerance ? ' alarm' : isWarn ? ' warn' : '');
+            
+            // Stats
+            document.getElementById(`min-${index}`).textContent = ch.min.toFixed(4);
+            document.getElementById(`max-${index}`).textContent = ch.max.toFixed(4);
+            document.getElementById(`range-${index}`).textContent = (ch.max - ch.min).toFixed(4);
+            document.getElementById(`count-${index}`).textContent = ch.count;
+            
+            // Footer updates
+            dom.totalReadings.textContent = state.totalReadings;
+            dom.lastReading.textContent = new Date().toLocaleTimeString();
+        }
+        
+        // ============================================
+        // WEBSOCKET
+        // ============================================
         function connect() {
-            socket = new WebSocket(wsUrl);
+            state.socket = new WebSocket(CONFIG.wsUrl);
             
-            socket.onopen = function(e) {
-                setStatus('connected', 'Connected');
-                addLog('WebSocket connected');
+            state.socket.onopen = () => {
+                state.connected = true;
+                setStatus('connected', 'ONLINE');
+                addLog('system', 'WebSocket connected');
             };
             
-            socket.onclose = function(e) {
-                setStatus('error', 'Disconnected');
-                addLog('WebSocket disconnected, reconnecting...');
-                setTimeout(connect, 2000);
+            state.socket.onclose = () => {
+                state.connected = false;
+                setStatus('error', 'OFFLINE');
+                addLog('system', 'Connection lost, reconnecting...');
+                setTimeout(connect, CONFIG.reconnectDelay);
             };
             
-            socket.onerror = function(e) {
-                setStatus('error', 'Error');
-                addLog('WebSocket error');
+            state.socket.onerror = () => {
+                setStatus('error', 'ERROR');
             };
             
-            socket.onmessage = function(e) {
+            state.socket.onmessage = (e) => {
                 const data = JSON.parse(e.data);
                 handleMessage(data);
             };
         }
         
         function handleMessage(data) {
-            switch(data.type) {
+            switch (data.type) {
                 case 'connection_established':
-                    addLog(`Connected to channel: ${data.channel}`);
+                    addLog('system', `Subscribed to ${data.channel}`);
                     break;
                     
                 case 'gauge_reading':
-                    updateReading(data);
+                    updateChannelDisplay(data.channel, data);
                     break;
                     
                 case 'gauge_offset':
-                    addLog(`OFFSET T${data.tool_number}: ${data.offset_value.toFixed(6)} ${data.success ? '✓' : '✗'}`, 'log-offset');
+                    addLog('offset', `T${data.tool_number}: ${data.offset_value.toFixed(6)} ${data.success ? '✓' : '✗'}`);
                     break;
                     
                 case 'gauge_status':
-                    addLog(`Status: ${data.status} - ${data.message}`);
+                    addLog('system', `${data.status}: ${data.message}`);
                     break;
             }
         }
         
-        function updateReading(data) {
-            const value = data.value;
-            const deviation = value - nominal;
-            const inTolerance = deviation >= lowerTol && deviation <= upperTol;
-            
-            // Update display
-            document.getElementById('value').textContent = value.toFixed(4);
-            document.getElementById('nominal').textContent = nominal.toFixed(4);
-            
-            const devEl = document.getElementById('deviation');
-            devEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(4)} mm`;
-            devEl.className = 'deviation ' + (inTolerance ? 'in-tolerance' : 'out-of-tolerance');
-            
-            // Update stats
-            readingCount++;
-            if (minValue === null || value < minValue) minValue = value;
-            if (maxValue === null || value > maxValue) maxValue = value;
-            
-            document.getElementById('readingCount').textContent = readingCount;
-            document.getElementById('minValue').textContent = minValue.toFixed(4);
-            document.getElementById('maxValue').textContent = maxValue.toFixed(4);
+        function setStatus(status, text) {
+            dom.statusIndicator.className = 'status-indicator ' + status;
+            dom.statusText.textContent = text;
         }
         
-        function setStatus(state, text) {
-            const dot = document.getElementById('statusDot');
-            dot.className = 'status-dot ' + state;
-            document.getElementById('statusText').textContent = text;
-        }
-        
-        function addLog(message, className = '') {
-            const log = document.getElementById('log');
+        // ============================================
+        // LOG
+        // ============================================
+        function addLog(type, message) {
             const time = new Date().toLocaleTimeString();
             const entry = document.createElement('div');
-            entry.className = 'log-entry ' + className;
-            entry.innerHTML = `<span class="log-time">${time}</span> ${message}`;
-            log.insertBefore(entry, log.firstChild);
+            entry.className = 'log-entry ' + (type === 'offset' ? 'offset' : type === 'error' ? 'error' : '');
+            entry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-channel">[${type.toUpperCase()}]</span>
+                <span class="log-message">${message}</span>
+            `;
+            dom.logContent.insertBefore(entry, dom.logContent.firstChild);
             
-            // Keep log size manageable
-            while (log.children.length > 100) {
-                log.removeChild(log.lastChild);
+            // Trim log
+            while (dom.logContent.children.length > 200) {
+                dom.logContent.removeChild(dom.logContent.lastChild);
             }
         }
         
-        // Connect on page load
-        connect();
+        // ============================================
+        // CONTROLS
+        // ============================================
+        function setupControls() {
+            // Gauge selector
+            const gaugeSelect = document.getElementById('gaugeSelect');
+            if (gaugeSelect) {
+                gaugeSelect.addEventListener('change', (e) => {
+                    // Reload page with new gauge selected
+                    const gaugeId = e.target.value;
+                    window.location.href = `/dashboard/?gauge=${gaugeId}`;
+                });
+            }
+            
+            // View buttons
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.currentView = parseInt(btn.dataset.view);
+                    dom.channelGrid.className = `channel-grid grid-${state.currentView}`;
+                    renderChannelGrid();
+                });
+            });
+            
+            // Log toggle
+            document.getElementById('btnLog').addEventListener('click', () => {
+                state.logOpen = !state.logOpen;
+                dom.logPanel.classList.toggle('open', state.logOpen);
+            });
+            
+            // Reset stats
+            document.getElementById('btnReset').addEventListener('click', () => {
+                state.channelsList.forEach(idx => {
+                    if (state.channels[idx]) {
+                        state.channels[idx].min = null;
+                        state.channels[idx].max = null;
+                        state.channels[idx].count = 0;
+                    }
+                });
+                state.totalReadings = 0;
+                renderChannelGrid();
+                addLog('system', 'Statistics reset');
+            });
+            
+            // Filter control
+            document.getElementById('filterSelect').addEventListener('change', (e) => {
+                const level = parseInt(e.target.value);
+                state.filterLevel = level;
+                sendCommand('set_filter', { level: level });
+                const labels = ['Off', '2', '4', '8', '16', '32', '64'];
+                addLog('system', `Filter set to ${labels[level]} samples`);
+            });
+            
+            // Master all channels
+            document.getElementById('btnMaster').addEventListener('click', () => {
+                masterAllChannels();
+            });
+            
+            // Clear all masters
+            document.getElementById('btnClearMaster').addEventListener('click', () => {
+                clearAllMasters();
+            });
+            
+            // Per-channel master buttons (delegated)
+            dom.channelGrid.addEventListener('click', (e) => {
+                if (e.target.classList.contains('channel-master-btn')) {
+                    const channel = parseInt(e.target.dataset.channel);
+                    masterChannel(channel);
+                }
+            });
+        }
+        
+        // ============================================
+        // MASTERING
+        // ============================================
+        function masterChannel(index) {
+            const ch = state.channels[index];
+            if (!ch) return;
+            if (ch.rawValue !== null) {
+                // Set offset so current raw value becomes nominal
+                ch.masterOffset = ch.rawValue - ch.nominal;
+                sendCommand('master_channel', { channel: index, offset: ch.masterOffset });
+                addLog('system', `CH ${index + 1} mastered (offset: ${ch.masterOffset >= 0 ? '+' : ''}${ch.masterOffset.toFixed(4)})`);
+            } else {
+                addLog('error', `CH ${index + 1} has no reading to master`);
+            }
+        }
+        
+        function masterAllChannels() {
+            let count = 0;
+            const visibleCount = Math.min(state.currentView, state.channelsList.length);
+            for (let i = 0; i < visibleCount; i++) {
+                const idx = state.channelsList[i];
+                const ch = state.channels[idx];
+                if (ch && ch.rawValue !== null) {
+                    ch.masterOffset = ch.rawValue - ch.nominal;
+                    count++;
+                }
+            }
+            sendCommand('master_all', {});
+            addLog('system', `Mastered ${count} channels`);
+        }
+        
+        function clearAllMasters() {
+            state.channelsList.forEach(idx => {
+                if (state.channels[idx]) {
+                    state.channels[idx].masterOffset = 0;
+                }
+            });
+            sendCommand('clear_masters', {});
+            addLog('system', 'All master offsets cleared');
+        }
+        
+        // ============================================
+        // SEND COMMANDS TO SERVER
+        // ============================================
+        function sendCommand(command, params) {
+            if (state.socket && state.connected) {
+                state.socket.send(JSON.stringify({
+                    type: 'command',
+                    command: command,
+                    ...params
+                }));
+            }
+        }
+        
+        // Clock
+        function updateClock() {
+            dom.clock.textContent = new Date().toLocaleTimeString();
+        }
+        
+        // ============================================
+        // INIT
+        // ============================================
+        function init() {
+            initChannelsFromConfig();
+            dom.channelCount.textContent = state.channelsList.length;
+            renderChannelGrid();
+            setupControls();
+            connect();
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+        
+        init();
     </script>
 </body>
 </html>

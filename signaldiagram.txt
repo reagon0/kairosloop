@@ -1,0 +1,377 @@
+═══════════════════════════════════════════════════════════════════════════════
+                         PHYSICAL PROCESS TIMELINE
+═══════════════════════════════════════════════════════════════════════════════
+
+    PART 1         PART 2         PART 3         PART 4         PART 5
+    ┌───┐          ┌───┐          ┌───┐          ┌───┐          ┌───┐
+    │   │          │   │          │   │          │   │          │   │
+    └───┘          └───┘          └───┘          └───┘          └───┘
+      │              │              │              │              │
+      ▼              ▼              ▼              ▼              ▼
+   25.000mm      25.002mm       25.005mm       25.003mm       25.001mm
+   (nominal)     (drifting)     (at threshold) (corrected)    (holding)
+                      │              │              ▲
+                      │              │              │
+                      └──── TOOL IS WEARING ───────┘
+                                     │
+                           COMPENSATION APPLIED
+                           (offset = -0.005)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Why Tools Wear & What Happens
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TOOL WEAR PHYSICS                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BRAND NEW TOOL                      AFTER 100 PARTS                        │
+│  ┌─────────┐                         ┌─────────┐                            │
+│  │         │                         │    ╭──  │ ◄── Cutting edge worn      │
+│  │    ┌────┤ ◄── Sharp edge          │    │    │     back by ~0.005mm       │
+│  │    │    │     at nominal          │    └────┤                            │
+│  │    │    │     position            │         │                            │
+│  └────┴────┘                         └─────────┘                            │
+│                                                                             │
+│  Cuts at 25.000mm                    Cuts at 25.005mm                       │
+│  (part is nominal)                   (part is OVERSIZED)                    │
+│                                                                             │
+│  WITHOUT COMPENSATION:                                                      │
+│  • Parts drift out of tolerance                                             │
+│  • Operator notices, manually adjusts offset                                │
+│  • Scrap parts, downtime                                                    │
+│                                                                             │
+│  WITH KAIROSLOOP:                                                           │
+│  • Drift detected automatically                                             │
+│  • Offset adjusted: tell CNC "move tool 0.005mm closer"                     │
+│  • Parts stay in tolerance                                                  │
+│  • Tool life tracked, alert when wear limit reached                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Complete Signal Flow: One Part Cycle
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: CNC FINISHES CUTTING PART
+═══════════════════════════════════════════════════════════════════════════════
+
+    CNC Machine                                        
+    ┌────────────────────────────┐                     
+    │  G-code program reaches    │                     
+    │  "M code" or probe routine │                     
+    │                            │                     
+    │  Sets PLC bit: R100.0 = 1  │────── CYCLE_COMPLETE signal
+    └────────────────────────────┘                     
+                                   │                   
+                                   ▼                   
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: CONTROLLER LAYER RECEIVES SIGNAL
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │                                                                          │
+    │  ControllerConfig.signal_cycle_complete = "R100.0"                       │
+    │                                                                          │
+    │  FOCAS2 driver polling R100.0...                                         │
+    │  Detected: R100.0 went HIGH                                              │
+    │                                                                          │
+    │  Action: Emit event to Measurement Layer                                 │
+    │          "CYCLE_COMPLETE from controller: Tsugami B0205"                 │
+    │                                                                          │
+    │  Also: Set signal_measuring = HIGH (tell PLC we're busy)                 │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   │  WebSocket / Django signal / direct call
+                                   ▼
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: MEASUREMENT LAYER CAPTURES DATA
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  MEASUREMENT LAYER                                                       │
+    │                                                                          │
+    │  Received: CYCLE_COMPLETE                                                │
+    │                                                                          │
+    │  1. Read N1700 gauge channels:                                           │
+    │     ┌──────────────────────────────────────┐                             │
+    │     │  CH0 (OD Left):   +0.003 mm          │                             │
+    │     │  CH1 (OD Right):  +0.002 mm          │                             │
+    │     └──────────────────────────────────────┘                             │
+    │                                                                          │
+    │  2. Evaluate Feature "Main OD":                                          │
+    │     Formula: (A + B) / 2                                                 │
+    │     A = CH0 = +0.003                                                     │
+    │     B = CH1 = +0.002                                                     │
+    │     Result: +0.0025 mm (deviation from nominal 25.000)                   │
+    │                                                                          │
+    │  3. Check tolerance:                                                     │
+    │     Nominal: 25.000                                                      │
+    │     Upper: +0.010                                                        │
+    │     Lower: -0.010                                                        │
+    │     Deviation +0.0025 is WITHIN tolerance → Status: OK                   │
+    │                                                                          │
+    │  4. Log Measurement record                                               │
+    │                                                                          │
+    │  5. Send to Compensation Layer:                                          │
+    │     {feature: "Main OD", deviation: +0.0025, status: OK}                 │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: COMPENSATION LAYER EVALUATES
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  COMPENSATION LAYER                                                      │
+    │                                                                          │
+    │  Lookup CompensationRule for "Main OD":                                  │
+    │  ┌────────────────────────────────────────────────────────────────────┐  │
+    │  │  Feature: Main OD                                                  │  │
+    │  │  Controller: Tsugami B0205                                         │  │
+    │  │  Tool: T01, Register: D01                                          │  │
+    │  │  Trigger Threshold: ±0.005                                         │  │
+    │  │  Max Per Cycle: 0.010                                              │  │
+    │  │  Wear Limit: 0.050                                                 │  │
+    │  │  Accumulated: 0.018 (from previous adjustments)                    │  │
+    │  └────────────────────────────────────────────────────────────────────┘  │
+    │                                                                          │
+    │  DECISION LOGIC:                                                         │
+    │                                                                          │
+    │  Deviation = +0.0025                                                     │
+    │  Threshold = ±0.005                                                      │
+    │                                                                          │
+    │  |+0.0025| < 0.005 ?                                                     │
+    │  YES → Deviation is BELOW threshold                                      │
+    │                                                                          │
+    │  ┌──────────────────────────────────────────┐                            │
+    │  │  RESULT: NO COMPENSATION NEEDED          │                            │
+    │  │  Reason: Deviation within dead band      │                            │
+    │  └──────────────────────────────────────────┘                            │
+    │                                                                          │
+    │  Log CompensationEvent:                                                  │
+    │  {status: SKIPPED, reason: "Below threshold", offset_applied: 0}         │
+    │                                                                          │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: CONTROLLER LAYER SIGNALS COMPLETE
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │                                                                          │
+    │  No offset to write (compensation skipped)                               │
+    │                                                                          │
+    │  Set signal_measuring = LOW                                              │
+    │  Set signal_ready = HIGH                                                 │
+    │                                                                          │
+    │  PLC sees READY, proceeds to next part                                   │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                    NOW LET'S SEE WHEN COMPENSATION TRIGGERS
+═══════════════════════════════════════════════════════════════════════════════
+
+When Compensation IS Triggered (Tool Has Worn)
+═══════════════════════════════════════════════════════════════════════════════
+PART 47: Tool has worn, deviation exceeds threshold
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  MEASUREMENT LAYER                                                       │
+    │                                                                          │
+    │  CH0: +0.006 mm                                                          │
+    │  CH1: +0.005 mm                                                          │
+    │  Result: +0.0055 mm deviation                                            │
+    │                                                                          │
+    │  Status: OK (still in tolerance, but drifting)                           │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  COMPENSATION LAYER                                                      │
+    │                                                                          │
+    │  Deviation = +0.0055                                                     │
+    │  Threshold = ±0.005                                                      │
+    │                                                                          │
+    │  |+0.0055| > 0.005 ?                                                     │
+    │  YES → COMPENSATION TRIGGERED                                            │
+    │                                                                          │
+    │  CALCULATE OFFSET:                                                       │
+    │  ┌────────────────────────────────────────────────────────────────────┐  │
+    │  │  raw_offset = deviation × direction                                │  │
+    │  │  raw_offset = +0.0055 × (-1) = -0.0055                             │  │
+    │  │                                                                    │  │
+    │  │  (negative = move tool CLOSER to cut more material)                │  │
+    │  │                                                                    │  │
+    │  │  SAFETY CHECKS:                                                    │  │
+    │  │  • |−0.0055| ≤ max_per_cycle (0.010)? YES ✓                        │  │
+    │  │  • accumulated + 0.0055 ≤ wear_limit (0.050)?                      │  │
+    │  │    0.018 + 0.0055 = 0.0235 ≤ 0.050? YES ✓                          │  │
+    │  │                                                                    │  │
+    │  │  FINAL: offset_to_apply = -0.0055                                  │  │
+    │  │         (rounded to controller resolution: -0.006)                 │  │
+    │  └────────────────────────────────────────────────────────────────────┘  │
+    │                                                                          │
+    │  UPDATE STATE:                                                           │
+    │  accumulated_offset: 0.018 → 0.024                                       │
+    │  last_adjustment: -0.006                                                 │
+    │                                                                          │
+    │  Send to Controller: {tool: T01, register: D01, offset: -0.006}          │
+    └─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │                                                                          │
+    │  FOCAS2 API call:                                                        │
+    │  ┌────────────────────────────────────────────────────────────────────┐  │
+    │  │  cnc_wrwkcdsfms(...)                                               │  │
+    │  │  Tool: 1                                                           │  │
+    │  │  Offset Type: WEAR                                                 │  │
+    │  │  Axis: X                                                           │  │
+    │  │  Value: current_offset + (-0.006)                                  │  │
+    │  │                                                                    │  │
+    │  │  (We ADD to existing offset, not replace)                          │  │
+    │  └────────────────────────────────────────────────────────────────────┘  │
+    │                                                                          │
+    │  Wait offset_write_delay_ms (50ms)                                       │
+    │  Verify write successful                                                 │
+    │                                                                          │
+    │  Set signal_ready = HIGH                                                 │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+    CNC Machine
+    ┌────────────────────────────────────────────────────────────────────────┐
+    │                                                                        │
+    │  Tool 1 Wear Offset (before): X = -0.012                               │
+    │  Tool 1 Wear Offset (after):  X = -0.018                               │
+    │                                                                        │
+    │  Next part will be cut 0.006mm smaller (back toward nominal)           │
+    │                                                                        │
+    └────────────────────────────────────────────────────────────────────────┘
+
+Wear Limit Reached (Tool End of Life)
+═══════════════════════════════════════════════════════════════════════════════
+PART 312: Accumulated offset approaching wear limit
+═══════════════════════════════════════════════════════════════════════════════
+
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  COMPENSATION LAYER                                                      │
+    │                                                                          │
+    │  Current state:                                                          │
+    │  accumulated_offset: 0.047                                               │
+    │  wear_limit: 0.050                                                       │
+    │  wear_limit_action: ALERT                                                │
+    │                                                                          │
+    │  New deviation: +0.008                                                   │
+    │  Calculated offset: -0.008                                               │
+    │                                                                          │
+    │  CHECK: 0.047 + 0.008 = 0.055 > 0.050 (WEAR LIMIT EXCEEDED)              │
+    │                                                                          │
+    │  ┌────────────────────────────────────────────────────────────────────┐  │
+    │  │  ACTION BASED ON wear_limit_action:                                │  │
+    │  │                                                                    │  │
+    │  │  ALERT:                                                            │  │
+    │  │  • Apply offset anyway (capped to stay at limit)                   │  │
+    │  │  • Send alert to dashboard                                         │  │
+    │  │  • Notify operator: "Tool T01 wear limit reached"                  │  │
+    │  │                                                                    │  │
+    │  │  STOP:                                                             │  │
+    │  │  • Do NOT apply offset                                             │  │
+    │  │  • Hold production                                                 │  │
+    │  │  • Set alarm signal to PLC                                         │  │
+    │  │                                                                    │  │
+    │  │  TOOL_CHANGE:                                                      │  │
+    │  │  • Signal PLC to change to redundant tool                          │  │
+    │  │  • Reset accumulated offset                                        │  │
+    │  │  • Continue production                                             │  │
+    │  └────────────────────────────────────────────────────────────────────┘  │
+    │                                                                          │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+Other Signals: Master, Tool Change, Part Present
+═══════════════════════════════════════════════════════════════════════════════
+MASTER REQUEST (Operator presses master button or loads master part)
+═══════════════════════════════════════════════════════════════════════════════
+
+    PLC: R100.1 = HIGH (signal_master_request)
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │  Detected: MASTER_REQUEST                                                │
+    │  Forward to Measurement Layer                                            │
+    └─────────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  MEASUREMENT LAYER                                                       │
+    │                                                                          │
+    │  MASTER ROUTINE:                                                         │
+    │  1. Read all channels                                                    │
+    │  2. Store as "master values" (baseline)                                  │
+    │  3. All subsequent measurements are deviations FROM master               │
+    │                                                                          │
+    │  Master values:                                                          │
+    │  CH0: 0.000 (zeroed)                                                     │
+    │  CH1: 0.000 (zeroed)                                                     │
+    │                                                                          │
+    │  Feature "Main OD" now measures relative to master part                  │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+TOOL CHANGE (CNC switched to different tool or replaced worn tool)
+═══════════════════════════════════════════════════════════════════════════════
+
+    PLC: Tool change detected (M6, or specific R-bit)
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │  Detected: TOOL_CHANGE for Tool T01                                      │
+    │  Forward to Compensation Layer                                           │
+    └─────────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  COMPENSATION LAYER                                                      │
+    │                                                                          │
+    │  Find all CompensationRules for T01:                                     │
+    │  • Rule for "Main OD" → T01                                              │
+    │                                                                          │
+    │  RESET:                                                                  │
+    │  accumulated_offset: 0.047 → 0.000                                       │
+    │  (New tool = fresh edge = start tracking wear from zero)                 │
+    │                                                                          │
+    │  Log: "Tool T01 replaced, accumulated offset reset"                      │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+PART PRESENT (Fixture sensor confirms part is loaded)
+═══════════════════════════════════════════════════════════════════════════════
+
+    PLC: R100.2 = HIGH (signal_part_present)
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  CONTROLLER LAYER                                                        │
+    │  Detected: PART_PRESENT                                                  │
+    │  Forward to Measurement Layer                                            │
+    └─────────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │  MEASUREMENT LAYER                                                       │
+    │                                                                          │
+    │  Used for validation:                                                    │
+    │  • Don't capture measurement unless part_present = TRUE                  │
+    │  • Prevents false readings from empty fixture                            │
+    │  • Can trigger pre-measurement settle time                               │
+    └─────────────────────────────────────────────────────────────────────────┘
+
+
+    

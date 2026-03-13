@@ -1,24 +1,25 @@
 # devices/services.py
 """
-Background service for gauge polling and offset management.
-Saves measurements to Django database.
+Background service for gauge data acquisition and offset management.
+Uses continuous mode for low-latency measurement.
 """
 
 import threading
 import time
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from dashboard.consumers import broadcast_reading, broadcast_offset
+
 from django.utils import timezone
-from .n1700 import N1700, N1700Exception
+
+from .n1700 import N1700, N1700Exception, FilterLevel
 from .controllers import BaseController, TestController, ControllerState
 from .models import GaugeConfig, ChannelConfig, ControllerConfig, ToolMapping
 from dmis.models import Feature, Measurement, Offset
 
 
-class PollingState(Enum):
+class ServiceState(Enum):
     STOPPED = "stopped"
     RUNNING = "running"
     PAUSED = "paused"
@@ -26,334 +27,295 @@ class PollingState(Enum):
 
 
 @dataclass
-class PollingConfig:
-    """Configuration for gauge polling."""
-    rate_hz: float = 10.0
-    channel: int = 0
-    auto_offset: bool = False
-    auto_save: bool = True  # Save measurements to database
-    feature_id: Optional[int] = None  # Feature being measured
-    
-    @property
-    def interval(self) -> float:
-        return 1.0 / self.rate_hz
-
-
-@dataclass 
-class PollingStats:
-    """Runtime statistics."""
-    polls: int = 0
-    errors: int = 0
-    saves: int = 0
-    offsets_sent: int = 0
+class ChannelStats:
+    """Per-channel statistics."""
+    count: int = 0
     last_value: Optional[float] = None
-    last_poll: Optional[datetime] = None
+    last_time: Optional[datetime] = None
     min_value: Optional[float] = None
     max_value: Optional[float] = None
     
-    def update(self, value: float):
-        self.polls += 1
+    def update(self, value: float, timestamp: datetime):
+        self.count += 1
         self.last_value = value
-        self.last_poll = datetime.now()
+        self.last_time = timestamp
         if self.min_value is None or value < self.min_value:
             self.min_value = value
         if self.max_value is None or value > self.max_value:
             self.max_value = value
     
     def reset(self):
-        self.polls = 0
-        self.errors = 0
-        self.saves = 0
-        self.offsets_sent = 0
+        self.count = 0
         self.last_value = None
-        self.last_poll = None
+        self.last_time = None
         self.min_value = None
         self.max_value = None
 
 
-class GaugePollingService:
+@dataclass
+class ServiceConfig:
+    """Configuration for the gauge service."""
+    filter_level: int = 5  # Default: 32-sample averaging
+    auto_offset: bool = False
+    auto_save: bool = False  # Save measurements to database
+    feature_map: Dict[int, int] = field(default_factory=dict)  # channel -> feature_id
+
+
+class GaugeService:
     """
-    Background service that polls the N1700 gauge.
-    Saves measurements to database and sends offsets to controllers.
+    Gauge data acquisition service using continuous mode.
+    
+    Streams measurements from N1700 hardware and broadcasts to WebSocket clients.
+    Optionally saves to database and sends offsets to CNC controllers.
     """
     
-    def __init__(self, gauge: Optional[N1700] = None, dll_path: Optional[str] = None):
-        self.gauge = gauge
+    def __init__(self, dll_path: Optional[str] = None):
         self.dll_path = dll_path
-        self.config = PollingConfig()
-        self.stats = PollingStats()
-        self.state = PollingState.STOPPED
+        self.gauge: Optional[N1700] = None
+        self.config = ServiceConfig()
+        self.state = ServiceState.STOPPED
+        
+        # Per-channel stats
+        self._channel_stats: Dict[int, ChannelStats] = {}
+        
+        # Software master offsets (per channel)
+        self._master_offsets: Dict[int, float] = {}
         
         # Controller management
         self._controllers: Dict[str, BaseController] = {}
         self._active_controllers: List[str] = []
         self._controller_lock = threading.Lock()
         
-        # Thread management
-        self._thread: Optional[threading.Thread] = None
-        self._stop_event = threading.Event()
-        self._pause_event = threading.Event()
-        self._pause_event.set()
-        self._config_lock = threading.Lock()
+        # Thread safety
+        self._lock = threading.Lock()
         
-        # Source identifier for measurements
+        # Source identifier
         self.source_name: str = "N1700"
         
         # Callbacks
-        self.on_reading: Optional[Callable[[float, datetime], None]] = None
+        self.on_reading: Optional[Callable[[int, float, datetime, bool], None]] = None
         self.on_error: Optional[Callable[[Exception], None]] = None
         self.on_offset: Optional[Callable[[str, int, float, bool], None]] = None
-        self.on_out_of_tolerance: Optional[Callable[[float, float], None]] = None
-        self.on_controller_change: Optional[Callable[[str, str], None]] = None
-        self.on_measurement_saved: Optional[Callable[[Measurement], None]] = None
+        self.on_state_change: Optional[Callable[[ServiceState], None]] = None
     
-    # -------------------------------------------------------------------------
-    # Controller Management
-    # -------------------------------------------------------------------------
+    # =========================================================================
+    # LIFECYCLE
+    # =========================================================================
     
-    def add_controller(self, name: str, controller: BaseController) -> bool:
-        with self._controller_lock:
-            if name in self._controllers:
-                return False
-            self._controllers[name] = controller
-            self._notify_controller_change(name, "added")
-            return True
-    
-    def remove_controller(self, name: str) -> bool:
-        with self._controller_lock:
-            if name not in self._controllers:
-                return False
-            if name in self._active_controllers:
-                self._disconnect_controller_unsafe(name)
-            del self._controllers[name]
-            self._notify_controller_change(name, "removed")
-            return True
-    
-    def connect_controller(self, name: str) -> bool:
-        with self._controller_lock:
-            if name not in self._controllers:
-                return False
-            if name in self._active_controllers:
-                return True
-            controller = self._controllers[name]
-            try:
-                if controller.connect():
-                    self._active_controllers.append(name)
-                    self._notify_controller_change(name, "connected")
-                    return True
-            except Exception as e:
-                if self.on_error:
-                    self.on_error(e)
-            return False
-    
-    def disconnect_controller(self, name: str) -> bool:
-        with self._controller_lock:
-            return self._disconnect_controller_unsafe(name)
-    
-    def _disconnect_controller_unsafe(self, name: str) -> bool:
-        if name not in self._active_controllers:
-            return False
-        controller = self._controllers[name]
+    def start(self):
+        """Start the gauge service in continuous mode."""
+        if self.state == ServiceState.RUNNING:
+            return
+        
         try:
-            controller.disconnect()
-        except Exception:
-            pass
-        self._active_controllers.remove(name)
-        self._notify_controller_change(name, "disconnected")
-        return True
+            # Initialize gauge
+            self.gauge = N1700(dll_path=self.dll_path)
+            num_modules, num_channels = self.gauge.initialize()
+            
+            if num_channels == 0:
+                raise N1700Exception(-1, "No channels detected")
+            
+            # Initialize per-channel stats
+            for i in range(num_channels):
+                self._channel_stats[i] = ChannelStats()
+                if i not in self._master_offsets:
+                    self._master_offsets[i] = 0.0
+            
+            # Apply filter setting
+            self.gauge.set_filter_all(self.config.filter_level)
+            
+            # Start continuous mode
+            self.gauge.start_continuous(callback=self._on_data)
+            
+            self._set_state(ServiceState.RUNNING)
+            
+        except Exception as e:
+            self._set_state(ServiceState.ERROR)
+            if self.on_error:
+                self.on_error(e)
+            raise
     
-    def get_controller(self, name: str) -> Optional[BaseController]:
-        return self._controllers.get(name)
+    def stop(self):
+        """Stop the gauge service."""
+        if self.gauge:
+            try:
+                self.gauge.stop_continuous()
+                self.gauge.close()
+            except Exception:
+                pass
+            self.gauge = None
+        
+        self._set_state(ServiceState.STOPPED)
     
-    def list_controllers(self) -> Dict[str, dict]:
-        with self._controller_lock:
-            return {
-                name: {
-                    "type": ctrl.name,
-                    "state": ctrl.state.value,
-                    "active": name in self._active_controllers
-                }
-                for name, ctrl in self._controllers.items()
-            }
-    
-    def get_active_controllers(self) -> List[str]:
-        with self._controller_lock:
-            return self._active_controllers.copy()
-    
-    def _notify_controller_change(self, name: str, action: str):
-        if self.on_controller_change:
-            self.on_controller_change(name, action)
-    
-    # -------------------------------------------------------------------------
-    # Configuration
-    # -------------------------------------------------------------------------
+    def _set_state(self, new_state: ServiceState):
+        """Update state and notify."""
+        self.state = new_state
+        if self.on_state_change:
+            self.on_state_change(new_state)
     
     @property
     def is_running(self) -> bool:
-        return self.state == PollingState.RUNNING
+        return self.state == ServiceState.RUNNING
     
-    def set_rate(self, hz: float):
-        if hz < 1 or hz > 1000:
-            raise ValueError("Polling rate must be between 1 and 1000 Hz")
-        with self._config_lock:
-            self.config.rate_hz = hz
+    # =========================================================================
+    # CONTINUOUS MODE CALLBACK
+    # =========================================================================
     
-    def set_feature(self, feature_id: int):
-        """Set which feature we're measuring."""
-        with self._config_lock:
-            self.config.feature_id = feature_id
-    
-    def set_channel(self, channel: int):
-        with self._config_lock:
-            self.config.channel = channel
-    
-    def enable_auto_offset(self, enabled: bool = True):
-        with self._config_lock:
-            self.config.auto_offset = enabled
-    
-    def enable_auto_save(self, enabled: bool = True):
-        with self._config_lock:
-            self.config.auto_save = enabled
-    
-    def load_from_database(self, gauge_config_id: int):
-        """Load configuration from database."""
-        try:
-            gauge_config = GaugeConfig.objects.get(id=gauge_config_id)
-            self.dll_path = gauge_config.dll_path or None
-            self.set_rate(gauge_config.polling_rate_hz)
-            self.source_name = gauge_config.name
-            
-            # Load controllers
-            for ctrl_config in ControllerConfig.objects.filter(active=True):
-                controller = self._create_controller_from_config(ctrl_config)
-                if controller:
-                    self.add_controller(ctrl_config.name, controller)
-            
-            return True
-        except GaugeConfig.DoesNotExist:
-            return False
-    
-    def _create_controller_from_config(self, config: ControllerConfig) -> Optional[BaseController]:
-        """Create controller instance from database config."""
-        if config.controller_type == 'test':
-            return TestController(verbose=True)
-        # Add other controller types here as implemented
-        # elif config.controller_type == 'fanuc':
-        #     return FanucController(port=config.port, baudrate=config.baudrate)
-        return None
-    
-    # -------------------------------------------------------------------------
-    # Polling Control
-    # -------------------------------------------------------------------------
-    
-    def start(self):
-        if self.state == PollingState.RUNNING:
-            return
+    def _on_data(self, channel_data: Dict[int, float]):
+        """
+        Called by N1700 continuous mode when new data arrives.
+        This runs in the DLL's callback thread.
+        """
+        now = timezone.now()
         
-        self._stop_event.clear()
-        self._pause_event.set()
-        self.stats.reset()
-        
-        self._thread = threading.Thread(target=self._poll_loop, daemon=True)
-        self._thread.start()
-        self.state = PollingState.RUNNING
-    
-    def stop(self):
-        self._stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=2.0)
-        self.state = PollingState.STOPPED
-    
-    def pause(self):
-        self._pause_event.clear()
-        self.state = PollingState.PAUSED
-    
-    def resume(self):
-        self._pause_event.set()
-        self.state = PollingState.RUNNING
-    
-    # -------------------------------------------------------------------------
-    # Main Loop
-    # -------------------------------------------------------------------------
-    
-    def _poll_loop(self):
-        """Main polling loop."""
-        owns_gauge = False
-        
-        if self.gauge is None:
+        for channel, raw_value in channel_data.items():
             try:
-                self.gauge = N1700(dll_path=self.dll_path)
-                self.gauge.initialize()
-                owns_gauge = True
-            except N1700Exception as e:
-                self.state = PollingState.ERROR
+                # Apply master offset
+                offset = self._master_offsets.get(channel, 0.0)
+                value = raw_value - offset
+                
+                # Update stats
+                stats = self._channel_stats.get(channel)
+                if stats:
+                    stats.update(value, now)
+                
+                # Check tolerance
+                in_tolerance = True
+                measurement = None
+                
+                feature_id = self.config.feature_map.get(channel)
+                if feature_id and self.config.auto_save:
+                    measurement = self._save_measurement(feature_id, value, now)
+                    if measurement:
+                        in_tolerance = measurement.in_tolerance
+                
+                # Send offset if out of tolerance
+                if measurement and self.config.auto_offset and not in_tolerance:
+                    self._process_offset(measurement)
+                
+                # Callback
+                if self.on_reading:
+                    self.on_reading(channel, value, now, in_tolerance)
+                
+                # Broadcast to WebSocket
+                self._broadcast_reading(channel, value, now, in_tolerance)
+                
+            except Exception as e:
                 if self.on_error:
                     self.on_error(e)
-                return
-        
-        try:
-            while not self._stop_event.is_set():
-                self._pause_event.wait()
-                
-                if self._stop_event.is_set():
-                    break
-                
-                # Get config
-                with self._config_lock:
-                    interval = self.config.interval
-                    channel = self.config.channel
-                    feature_id = self.config.feature_id
-                    auto_offset = self.config.auto_offset
-                    auto_save = self.config.auto_save
-                
-                # Poll
-                try:
-                    value = self.gauge.poll_data(channel)
-                    now = timezone.now()
-                    self.stats.update(value)
-                    
-                    # Callback
-                    if self.on_reading:
-                        self.on_reading(value, now)
-                    
-                    # Save to database
-                    measurement = None
-                    if auto_save and feature_id:
-                        measurement = self._save_measurement(feature_id, value, now)
-                    
-                    # Check tolerance and send offset
-                    if measurement and auto_offset:
-                        self._check_and_send_offset(measurement)
-                    
-                    # Broadcast to WebSocket clients
-                    try:
-                        from dashboard.consumers import broadcast_reading
-                        in_tol = True
-                        if measurement:
-                            in_tol = measurement.in_tolerance
-                        broadcast_reading(channel, value, now, in_tol)
-                    except Exception:
-                        pass  # Don't let WebSocket errors stop polling
-                
-                except N1700Exception as e:
-                    self.stats.errors += 1
-                    if self.on_error:
-                        self.on_error(e)
-                except Exception as e:
-                    self.stats.errors += 1
-                    if self.on_error:
-                        self.on_error(e)
-                
-                time.sleep(interval)
-        
-        finally:
-            if owns_gauge and self.gauge:
-                self.gauge.close()
-                self.gauge = None
     
-    # -------------------------------------------------------------------------
-    # Database Operations
-    # -------------------------------------------------------------------------
+    def _broadcast_reading(self, channel: int, value: float, timestamp, in_tolerance: bool):
+        """Broadcast reading to WebSocket clients."""
+        try:
+            from dashboard.consumers import broadcast_reading
+            broadcast_reading(channel, value, timestamp, in_tolerance)
+        except Exception:
+            pass  # Don't let WebSocket errors stop data flow
+    
+    # =========================================================================
+    # FILTER CONTROL
+    # =========================================================================
+    
+    def get_filter(self) -> int:
+        """Get current filter level."""
+        return self.config.filter_level
+    
+    def set_filter(self, level: int):
+        """
+        Set filter level for all channels.
+        
+        Args:
+            level: 0-6 (0=off, 6=64 samples)
+        """
+        if level < 0 or level > 6:
+            raise ValueError("Filter level must be 0-6")
+        
+        self.config.filter_level = level
+        
+        if self.gauge and self.is_running:
+            self.gauge.set_filter_all(level)
+    
+    def set_channel_filter(self, channel: int, level: int):
+        """Set filter level for a specific channel."""
+        if self.gauge and self.is_running:
+            self.gauge.set_filter(channel, level)
+    
+    # =========================================================================
+    # MASTERING (SOFTWARE OFFSET)
+    # =========================================================================
+    
+    def master_channel(self, channel: int, master_value: float = 0.0):
+        """
+        Master (zero) a channel.
+        
+        Sets the current reading as the reference point.
+        
+        Args:
+            channel: Channel index (0-based)
+            master_value: Target value after mastering (default 0.0)
+        """
+        stats = self._channel_stats.get(channel)
+        if stats and stats.last_value is not None:
+            # offset = raw - desired
+            # so: displayed = raw - offset = desired
+            raw = stats.last_value + self._master_offsets.get(channel, 0.0)
+            self._master_offsets[channel] = raw - master_value
+    
+    def master_all(self, master_value: float = 0.0):
+        """Master all channels to the same value."""
+        for channel in self._channel_stats.keys():
+            self.master_channel(channel, master_value)
+    
+    def clear_master(self, channel: int):
+        """Clear master offset for a channel."""
+        self._master_offsets[channel] = 0.0
+    
+    def clear_all_masters(self):
+        """Clear all master offsets."""
+        for channel in self._master_offsets.keys():
+            self._master_offsets[channel] = 0.0
+    
+    def get_master_offset(self, channel: int) -> float:
+        """Get the current master offset for a channel."""
+        return self._master_offsets.get(channel, 0.0)
+    
+    # =========================================================================
+    # STATISTICS
+    # =========================================================================
+    
+    def get_stats(self, channel: int) -> Optional[ChannelStats]:
+        """Get statistics for a channel."""
+        return self._channel_stats.get(channel)
+    
+    def get_all_stats(self) -> Dict[int, ChannelStats]:
+        """Get statistics for all channels."""
+        return self._channel_stats.copy()
+    
+    def reset_stats(self, channel: Optional[int] = None):
+        """Reset statistics for one or all channels."""
+        if channel is not None:
+            stats = self._channel_stats.get(channel)
+            if stats:
+                stats.reset()
+        else:
+            for stats in self._channel_stats.values():
+                stats.reset()
+    
+    # =========================================================================
+    # FEATURE MAPPING
+    # =========================================================================
+    
+    def set_feature(self, channel: int, feature_id: int):
+        """Map a channel to a feature for tolerance checking."""
+        self.config.feature_map[channel] = feature_id
+    
+    def clear_feature(self, channel: int):
+        """Remove feature mapping for a channel."""
+        self.config.feature_map.pop(channel, None)
+    
+    # =========================================================================
+    # DATABASE OPERATIONS
+    # =========================================================================
     
     def _save_measurement(self, feature_id: int, value: float, timestamp) -> Optional[Measurement]:
         """Save measurement to database."""
@@ -363,13 +325,8 @@ class GaugePollingService:
                 feature=feature,
                 actual=value,
                 timestamp=timestamp,
-                source=f"{self.source_name}:Ch{self.config.channel}"
+                source=f"{self.source_name}"
             )
-            self.stats.saves += 1
-            
-            if self.on_measurement_saved:
-                self.on_measurement_saved(measurement)
-            
             return measurement
         except Feature.DoesNotExist:
             return None
@@ -378,16 +335,12 @@ class GaugePollingService:
                 self.on_error(e)
             return None
     
-    def _check_and_send_offset(self, measurement: Measurement):
-        """Check if measurement is out of tolerance and send offset."""
-        if measurement.in_tolerance:
-            return
-        
-        # Out of tolerance - notify
-        if self.on_out_of_tolerance:
-            self.on_out_of_tolerance(measurement.actual, measurement.deviation)
-        
-        # Find tool mappings for this feature
+    # =========================================================================
+    # OFFSET PROCESSING
+    # =========================================================================
+    
+    def _process_offset(self, measurement: Measurement):
+        """Process offset for an out-of-tolerance measurement."""
         tool_mappings = ToolMapping.objects.filter(
             feature=measurement.feature,
             enabled=True
@@ -412,32 +365,8 @@ class GaugePollingService:
                 success=success
             )
     
-    def _save_offset(
-        self,
-        measurement: Measurement,
-        controller_name: str,
-        tool_number: int,
-        offset_value: float,
-        success: bool
-    ):
-        """Save offset record to database."""
-        try:
-            Offset.objects.create(
-                measurement=measurement,
-                controller=controller_name,
-                tool_number=tool_number,
-                offset_value=offset_value,
-                applied=success,
-                applied_at=timezone.now() if success else None
-            )
-            if success:
-                self.stats.offsets_sent += 1
-        except Exception as e:
-            if self.on_error:
-                self.on_error(e)
-    
     def _send_offset(self, controller_name: str, tool_number: int, offset_value: float) -> bool:
-        """Send offset to a specific controller."""
+        """Send offset to a controller."""
         with self._controller_lock:
             if controller_name not in self._active_controllers:
                 return False
@@ -452,12 +381,12 @@ class GaugePollingService:
                 if self.on_offset:
                     self.on_offset(controller_name, tool_number, offset_value, success)
                 
-                # Broadcast to WebSocket clients
+                # Broadcast to WebSocket
                 try:
                     from dashboard.consumers import broadcast_offset
                     broadcast_offset(controller_name, tool_number, offset_value, success)
                 except Exception:
-                    pass  # Don't let WebSocket errors stop offset sending
+                    pass
                 
                 return success
             except Exception as e:
@@ -465,62 +394,173 @@ class GaugePollingService:
                     self.on_error(e)
                 return False
     
-    # -------------------------------------------------------------------------
-    # Manual Operations
-    # -------------------------------------------------------------------------
+    def _save_offset(self, measurement, controller_name, tool_number, offset_value, success):
+        """Save offset record to database."""
+        try:
+            Offset.objects.create(
+                measurement=measurement,
+                controller=controller_name,
+                tool_number=tool_number,
+                offset_value=offset_value,
+                applied=success,
+                applied_at=timezone.now() if success else None
+            )
+        except Exception as e:
+            if self.on_error:
+                self.on_error(e)
+    
+    # =========================================================================
+    # CONTROLLER MANAGEMENT
+    # =========================================================================
+    
+    def add_controller(self, name: str, controller: BaseController) -> bool:
+        """Add a controller."""
+        with self._controller_lock:
+            if name in self._controllers:
+                return False
+            self._controllers[name] = controller
+            return True
+    
+    def remove_controller(self, name: str) -> bool:
+        """Remove a controller."""
+        with self._controller_lock:
+            if name not in self._controllers:
+                return False
+            if name in self._active_controllers:
+                self._disconnect_controller(name)
+            del self._controllers[name]
+            return True
+    
+    def connect_controller(self, name: str) -> bool:
+        """Connect a controller."""
+        with self._controller_lock:
+            if name not in self._controllers:
+                return False
+            if name in self._active_controllers:
+                return True
+            
+            controller = self._controllers[name]
+            try:
+                if controller.connect():
+                    self._active_controllers.append(name)
+                    return True
+            except Exception as e:
+                if self.on_error:
+                    self.on_error(e)
+            return False
+    
+    def disconnect_controller(self, name: str) -> bool:
+        """Disconnect a controller."""
+        with self._controller_lock:
+            return self._disconnect_controller(name)
+    
+    def _disconnect_controller(self, name: str) -> bool:
+        """Internal disconnect (must hold lock)."""
+        if name not in self._active_controllers:
+            return False
+        
+        controller = self._controllers[name]
+        try:
+            controller.disconnect()
+        except Exception:
+            pass
+        
+        self._active_controllers.remove(name)
+        return True
+    
+    def list_controllers(self) -> Dict[str, dict]:
+        """List all controllers and their status."""
+        with self._controller_lock:
+            return {
+                name: {
+                    "type": ctrl.name,
+                    "state": ctrl.state.value,
+                    "active": name in self._active_controllers
+                }
+                for name, ctrl in self._controllers.items()
+            }
+    
+    # =========================================================================
+    # MANUAL OPERATIONS
+    # =========================================================================
     
     def send_offset(self, tool_number: int, offset_value: float, controller_name: Optional[str] = None):
-        """Manually send offset to one or all active controllers."""
+        """Manually send an offset to one or all active controllers."""
         with self._controller_lock:
             targets = [controller_name] if controller_name else self._active_controllers
             
             for name in targets:
-                if name not in self._controllers:
-                    continue
-                if name not in self._active_controllers:
-                    continue
-                
-                controller = self._controllers[name]
-                try:
-                    success = controller.write_offset(tool_number, offset_value)
-                    if self.on_offset:
-                        self.on_offset(name, tool_number, offset_value, success)
-                except Exception as e:
-                    if self.on_error:
-                        self.on_error(e)
+                if name in self._controllers and name in self._active_controllers:
+                    controller = self._controllers[name]
+                    try:
+                        success = controller.write_offset(tool_number, offset_value)
+                        if self.on_offset:
+                            self.on_offset(name, tool_number, offset_value, success)
+                    except Exception as e:
+                        if self.on_error:
+                            self.on_error(e)
     
-    def take_single_measurement(self, feature_id: int, channel: Optional[int] = None) -> Optional[Measurement]:
-        """Take and save a single measurement (doesn't require polling to be running)."""
-        if self.gauge is None:
-            return None
+    def get_channel_info(self) -> List[dict]:
+        """Get info for all channels."""
+        if not self.gauge:
+            return []
         
-        ch = channel if channel is not None else self.config.channel
-        try:
-            value = self.gauge.poll_data(ch)
-            return self._save_measurement(feature_id, value, timezone.now())
-        except Exception as e:
-            if self.on_error:
-                self.on_error(e)
-            return None
+        info = []
+        for i in range(self.gauge.get_num_channels()):
+            ch = self.gauge.get_channel(i)
+            stats = self._channel_stats.get(i)
+            info.append({
+                "index": i,
+                "display_index": i + 1,  # 1-indexed for display
+                "port_type": ch["port_type"].name,
+                "filter": ch["filter"],
+                "master_offset": self._master_offsets.get(i, 0.0),
+                "last_value": stats.last_value if stats else None,
+                "count": stats.count if stats else 0,
+                "min": stats.min_value if stats else None,
+                "max": stats.max_value if stats else None,
+            })
+        return info
 
 
-# -------------------------------------------------------------------------
-# Convenience Functions
-# -------------------------------------------------------------------------
+# =============================================================================
+# SINGLETON INSTANCE
+# =============================================================================
 
-def poll_once(channel: int = 0, dll_path: Optional[str] = None) -> float:
-    """Take a single gauge reading (no database)."""
-    with N1700(dll_path=dll_path) as gauge:
-        gauge.initialize()
-        return gauge.poll_data(channel)
+_service_instance: Optional[GaugeService] = None
 
 
-def create_test_service(rate_hz: float = 10.0, feature_id: Optional[int] = None) -> GaugePollingService:
+def get_service() -> GaugeService:
+    """Get the singleton gauge service instance."""
+    global _service_instance
+    if _service_instance is None:
+        _service_instance = GaugeService()
+    return _service_instance
+
+
+def start_service(dll_path: Optional[str] = None) -> GaugeService:
+    """Start the gauge service."""
+    global _service_instance
+    if _service_instance is None:
+        _service_instance = GaugeService(dll_path=dll_path)
+    _service_instance.start()
+    return _service_instance
+
+
+def stop_service():
+    """Stop the gauge service."""
+    global _service_instance
+    if _service_instance:
+        _service_instance.stop()
+
+
+# =============================================================================
+# CONVENIENCE FUNCTIONS
+# =============================================================================
+
+def create_test_service() -> GaugeService:
     """Create a service with TestController for development."""
-    service = GaugePollingService()
+    service = GaugeService()
     service.add_controller("test", TestController())
     service.connect_controller("test")
-    service.set_rate(rate_hz)
-    if feature_id:
-        service.set_feature(feature_id)
     return service

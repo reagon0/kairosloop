@@ -1,0 +1,135 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              PHYSICAL WORLD                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+        │                                                      ▲
+        │ Probe touches part                                   │ Tool offset written
+        ▼                                                      │
+┌─────────────────┐                                    ┌─────────────────┐
+│   GAUGE HW      │                                    │   CNC/PLC       │
+│   (N1700)       │                                    │   (Fanuc)       │
+└────────┬────────┘                                    └────────▲────────┘
+         │ Raw channel values (µm)                              │
+         │                                                      │
+═════════╪══════════════════════════════════════════════════════╪═════════════
+         │                         KAIROSLOOP                   │
+         ▼                                                      │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         MEASUREMENT LAYER                                    │
+│                         "What am I measuring?"                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  GaugeConfig                    ChannelConfig                               │
+│  ├─ driver_type: n1700          ├─ gauge (FK)                               │
+│  ├─ dll_path                    ├─ channel_index: 0                         │
+│  ├─ use_64bit                   ├─ name: "OD Left Probe"                    │
+│  └─ filter_level: 5             └─ enabled: true                            │
+│                                                                             │
+│  Feature                        FeatureInput                                │
+│  ├─ name: "Main OD"             ├─ feature (FK)                             │
+│  ├─ formula: "(A + B) / 2"      ├─ label: "A"                               │
+│  ├─ nominal: 25.000             └─ channel_index: 0                         │
+│  ├─ tolerance_upper: 0.010                                                  │
+│  ├─ tolerance_lower: 0.010      Measurement (log)                           │
+│  └─ tolerance_mode: BILATERAL   ├─ feature (FK)                             │
+│                                 ├─ computed_value: 25.003                   │
+│  ┌──────────────────────────┐   ├─ deviation: +0.003                        │
+│  │ SIGNALS IN (from PLC)   │   ├─ status: OK                               │
+│  │ • cycle_complete        │   └─ timestamp                                 │
+│  │ • master_request        │                                                │
+│  │ • part_present          │                                                │
+│  │ • tool_change           │◄──────── These come FROM controller layer     │
+│  └──────────────────────────┘                                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │
+         │ Feature evaluation result: {feature_id, value, deviation, status}
+         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        COMPENSATION LAYER                                    │
+│                        "Should I compensate? How much?"                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CompensationRule                                                           │
+│  ├─ feature (FK) ──────────────────► "Main OD"                              │
+│  ├─ controller (FK) ───────────────► "Tsugami B0205"                        │
+│  │                                                                          │
+│  │  TOOL MAPPING                                                            │
+│  ├─ tool_number: 1                                                          │
+│  ├─ offset_register: "D01"         (or H01, wear offset, etc.)              │
+│  ├─ offset_axis: X                 (which axis this tool cuts)              │
+│  ├─ offset_direction: -1           (multiplier: -1 = compensate)            │
+│  │                                                                          │
+│  │  TRIGGER LOGIC                                                           │
+│  ├─ trigger_mode: THRESHOLD        (or EVERY_CYCLE, AVERAGE_N, etc.)        │
+│  ├─ trigger_threshold: 0.005       (compensate when |deviation| > this)     │
+│  ├─ sample_count: 1                (for averaging modes)                    │
+│  │                                                                          │
+│  │  SAFETY LIMITS                                                           │
+│  ├─ max_per_cycle: 0.010           (cap single adjustment)                  │
+│  ├─ wear_limit: 0.050              (alert/stop when accumulated hits this)  │
+│  ├─ wear_limit_action: ALERT       (or STOP, TOOL_CHANGE)                   │
+│  │                                                                          │
+│  │  STATE                                                                   │
+│  ├─ active: true                                                            │
+│  ├─ accumulated_offset: 0.023      (running total)                          │
+│  └─ last_adjustment: 0.002                                                  │
+│                                                                             │
+│  CompensationEvent (log)                                                    │
+│  ├─ rule (FK)                                                               │
+│  ├─ measurement (FK)                                                        │
+│  ├─ deviation_in: +0.008                                                    │
+│  ├─ offset_calculated: -0.008                                               │
+│  ├─ offset_applied: -0.008         (after safety clamp)                     │
+│  ├─ accumulated_before: 0.015                                               │
+│  ├─ accumulated_after: 0.023                                                │
+│  ├─ status: APPLIED                (or SKIPPED, CLAMPED, BLOCKED)           │
+│  └─ timestamp                                                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │
+         │ Offset command: {controller_id, tool, register, value}
+         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CONTROLLER LAYER                                     │
+│                         "How do I talk to the machine?"                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ControllerConfig                                                           │
+│  ├─ name: "Tsugami B0205"                                                   │
+│  ├─ controller_type: fanuc                                                  │
+│  │                                                                          │
+│  │  CONNECTION                                                              │
+│  ├─ host: "192.168.1.100"                                                   │
+│  ├─ port: 8193                                                              │
+│  ├─ protocol: FOCAS2              (or MTCONNECT, OPC-UA, MODBUS)            │
+│  ├─ timeout_ms: 1000                                                        │
+│  │                                                                          │
+│  │  SIGNALS (addresses in PLC)                                              │
+│  ├─ signal_cycle_complete: "R100.0"    ─────► sent TO measurement layer    │
+│  ├─ signal_master_request: "R100.1"    ─────► sent TO measurement layer    │
+│  ├─ signal_part_present: "R100.2"      ─────► sent TO measurement layer    │
+│  ├─ signal_ready: "R101.0"             ◄───── sent FROM kairosloop         │
+│  ├─ signal_alarm: "R101.1"             ◄───── sent FROM kairosloop         │
+│  │                                                                          │
+│  │  OFFSET SETTINGS                                                         │
+│  ├─ offset_method: WEAR            (or GEOMETRY, MACRO_VAR)                 │
+│  ├─ offset_resolution: 0.001       (minimum increment CNC accepts)          │
+│  ├─ offset_write_delay_ms: 50      (wait after write before next)           │
+│  │                                                                          │
+│  │  STATE                                                                   │
+│  ├─ connected: true                                                         │
+│  └─ last_heartbeat: 2025-03-12 14:32:05                                     │
+│                                                                             │
+│  ControllerSignal (enum or config)                                          │
+│  ├─ CYCLE_COMPLETE   → triggers measurement capture                         │
+│  ├─ MASTER_REQUEST   → triggers master/zeroing routine                      │
+│  ├─ PART_PRESENT     → validates part is in fixture                         │
+│  └─ TOOL_CHANGE      → resets accumulated offset for that tool              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+         │
+         │ FOCAS2 / OPC-UA / MODBUS
+         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CNC / PLC                                       │
+└─────────────────────────────────────────────────────────────────────────────┘

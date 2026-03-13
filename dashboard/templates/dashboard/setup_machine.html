@@ -1,0 +1,45 @@
+{% extends "dashboard/setup_base_form.html" %}
+
+{% block title %}Edit Machine — KairosLoop{% endblock %}
+{% block page_title %}Edit Machine{% endblock %}
+{% block page_subtitle %}Update machine name and location{% endblock %}
+
+{% block form_content %}
+<div class="form-card">
+    {% if form.errors %}
+    <div class="form-errors">
+        <ul>
+        {% for field in form %}
+            {% for error in field.errors %}
+            <li>{{ field.label }}: {{ error }}</li>
+            {% endfor %}
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label class="form-label" for="id_name">Name</label>
+            {{ form.name }}
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="id_location">Location</label>
+            {{ form.location }}
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label" for="id_description">Description</label>
+            {{ form.description }}
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{% url 'setup' %}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

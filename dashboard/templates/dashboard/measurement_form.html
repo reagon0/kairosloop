@@ -1,0 +1,762 @@
+{% extends 'dashboard/setup_base_form.html' %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Measurement{% endblock %}
+{% block page_title %}{% if is_new %}Add{% else %}Edit{% endif %} Measurement{% endblock %}
+{% block page_subtitle %}Configure how channel values are combined and evaluated{% endblock %}
+
+{% block extra_styles %}
+{{ block.super }}
+<style>
+    /* ========================================
+       FORM LAYOUT
+       ======================================== */
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 8px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+    }
+    
+    .form-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .form-card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .form-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row.triple {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* ========================================
+       LABELS WITH TOOLTIPS
+       ======================================== */
+    .form-label-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .form-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+    
+    .info-tooltip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        background: transparent;
+        border: 1px solid var(--text-dim);
+        border-radius: 50%;
+        font-size: 9px;
+        font-style: italic;
+        font-weight: 600;
+        color: var(--text-dim);
+        cursor: help;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+    }
+    
+    .info-tooltip:hover {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: white;
+    }
+    
+    .info-tooltip .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-panel);
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--text-primary);
+        text-transform: none;
+        letter-spacing: normal;
+        white-space: normal;
+        width: 220px;
+        line-height: 1.5;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+    
+    .info-tooltip .tooltip-text::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: var(--border-light);
+    }
+    
+    .info-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    /* ========================================
+       INPUTS SECTION
+       ======================================== */
+    .inputs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .input-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 10px 14px;
+    }
+    
+    .input-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--blue);
+        background: rgba(0, 153, 255, 0.1);
+        padding: 4px 10px;
+        border-radius: 4px;
+        min-width: 36px;
+        text-align: center;
+    }
+    
+    .input-arrow {
+        color: var(--text-dim);
+        font-size: 14px;
+    }
+    
+    .input-channel-select {
+        flex: 1;
+    }
+    
+    .input-remove {
+        background: transparent;
+        border: none;
+        color: var(--text-dim);
+        font-size: 18px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+    }
+    
+    .input-remove:hover {
+        background: rgba(255, 51, 51, 0.1);
+        color: var(--red);
+    }
+    
+    .btn-add-input {
+        background: transparent;
+        border: 1px dashed var(--border-light);
+        color: var(--text-secondary);
+        padding: 10px 16px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .btn-add-input:hover {
+        border-color: var(--green);
+        color: var(--green);
+        background: rgba(0, 255, 136, 0.05);
+    }
+    
+    /* ========================================
+       FORMULA SECTION
+       ======================================== */
+    .formula-input-wrapper {
+        position: relative;
+    }
+    
+    .formula-input-wrapper input {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 15px;
+        letter-spacing: 0.5px;
+    }
+    
+    .formula-preview-box {
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 14px 16px;
+        margin-top: 12px;
+    }
+    
+    .formula-preview-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+    
+    .formula-preview-expr {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--blue);
+    }
+    
+    .formula-preview-map {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 6px;
+    }
+    
+    .formula-examples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+    
+    .formula-example {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-dark);
+        color: var(--text-secondary);
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    
+    .formula-example:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+    }
+    
+    /* Error Display */
+    .form-error {
+        background: rgba(255, 51, 51, 0.1);
+        border: 1px solid var(--red);
+        color: var(--red);
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-top: 8px;
+    }
+    
+    /* ========================================
+       TOLERANCE SECTION
+       ======================================== */
+    .tolerance-visual {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 16px;
+        margin-top: 12px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .tol-nominal {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .tol-limits {
+        display: flex;
+        flex-direction: column;
+        font-size: 13px;
+    }
+    
+    .tol-upper { color: var(--green); }
+    .tol-lower { color: var(--red); }
+    
+    .tol-none {
+        color: var(--text-dim);
+        font-style: italic;
+        font-family: inherit;
+    }
+    
+    /* ========================================
+       OPTIONAL SECTION
+       ======================================== */
+    .optional-section {
+        border: 1px dashed var(--border-dark);
+        background: transparent;
+    }
+    
+    .optional-badge {
+        font-size: 9px;
+        font-weight: 600;
+        color: var(--text-dim);
+        background: var(--bg-recessed);
+        padding: 2px 6px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: auto;
+    }
+    
+    /* ========================================
+       ACTIONS
+       ======================================== */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .btn-submit {
+        background: var(--green);
+        border: none;
+        color: #000;
+        padding: 12px 28px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-submit:hover {
+        filter: brightness(1.1);
+    }
+    
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 12px 28px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-cancel:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
+{% block form_content %}
+<form method="post" id="measurementForm">
+    {% csrf_token %}
+    
+    <!-- BASICS -->
+    <div class="form-card">
+        <div class="form-card-header">
+            <div>
+                <div class="form-card-title">Basics</div>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Name</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">A descriptive name like "Main OD" or "Bearing Seat Diameter"</span>
+                    </span>
+                </div>
+                {{ form.name }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Type</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">Category for reporting. Doesn't affect calculation.</span>
+                    </span>
+                </div>
+                {{ form.feature_type }}
+            </div>
+        </div>
+        
+        <div class="form-row single">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Description</label>
+                </div>
+                {{ form.description }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- INPUTS -->
+    <div class="form-card">
+        <div class="form-card-header">
+            <div>
+                <div class="form-card-title">Inputs</div>
+            </div>
+        </div>
+        
+        <div class="inputs-list" id="inputsContainer">
+            <!-- JS renders inputs here -->
+        </div>
+        
+        <button type="button" class="btn-add-input" id="btnAddInput">
+            <span>+</span> Add Input
+        </button>
+        
+        <input type="hidden" name="input_count" id="inputCount" value="0">
+    </div>
+    
+    <!-- FORMULA -->
+    <div class="form-card">
+        <div class="form-card-header">
+            <div>
+                <div class="form-card-title">Formula</div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <div class="form-label-row">
+                <label class="form-label">Expression</label>
+                <span class="info-tooltip">i
+                    <span class="tooltip-text">Use input letters (A, B, C...) with math operators. Supports: + - * / ( ) abs() min() max() sqrt()</span>
+                </span>
+            </div>
+            <div class="formula-input-wrapper">
+                {{ form.formula }}
+            </div>
+            {% if form.formula.errors %}
+            <div class="form-error">{{ form.formula.errors.0 }}</div>
+            {% endif %}
+            
+            <div class="formula-examples">
+                <span class="formula-example" data-formula="A">A</span>
+                <span class="formula-example" data-formula="A + B">A + B</span>
+                <span class="formula-example" data-formula="A - B">A - B</span>
+                <span class="formula-example" data-formula="(A + B) / 2">(A + B) / 2</span>
+                <span class="formula-example" data-formula="abs(A - B)">abs(A - B)</span>
+            </div>
+        </div>
+        
+        <div class="formula-preview-box">
+            <div class="formula-preview-label">Result</div>
+            <div class="formula-preview-expr" id="formulaPreview">A</div>
+            <div class="formula-preview-map" id="formulaMappings">where A = ?</div>
+        </div>
+    </div>
+    
+    <!-- TOLERANCE (Optional) -->
+    <div class="form-card optional-section">
+        <div class="form-card-header">
+            <div>
+                <div class="form-card-title">Tolerance</div>
+            </div>
+            <span class="optional-badge">Optional</span>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Mode</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">
+                            <strong>Bilateral:</strong> Nominal ± tolerance<br>
+                            <strong>Limit:</strong> Must be ≤ value (TIR, runout)<br>
+                            <strong>Unilateral:</strong> Tolerance on one side only
+                        </span>
+                    </span>
+                </div>
+                {{ form.tolerance_mode }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Nominal</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">Target value. Leave blank for Limit mode.</span>
+                    </span>
+                </div>
+                {{ form.nominal }}
+            </div>
+        </div>
+        
+        <div class="form-row triple">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Upper Tol</label>
+                </div>
+                {{ form.tolerance_upper }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Lower Tol</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">Leave blank to use the same value as upper (symmetric tolerance).</span>
+                    </span>
+                </div>
+                {{ form.tolerance_lower }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Warning %</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">Yellow warning zone. E.g., 80 means warn when past 80% of tolerance.</span>
+                    </span>
+                </div>
+                {{ form.warning_percent }}
+            </div>
+        </div>
+        
+        <div class="tolerance-visual" id="toleranceVisual">
+            <span class="tol-none">No tolerance set</span>
+        </div>
+    </div>
+    
+    <!-- DISPLAY -->
+    <div class="form-card optional-section">
+        <div class="form-card-header">
+            <div>
+                <div class="form-card-title">Display</div>
+            </div>
+            <span class="optional-badge">Optional</span>
+        </div>
+        
+        <div class="form-row triple">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Unit</label>
+                </div>
+                {{ form.unit }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Decimals</label>
+                </div>
+                {{ form.resolution }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Active</label>
+                </div>
+                <div style="padding-top: 6px;">
+                    {{ form.active }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ACTIONS -->
+    <div class="form-actions">
+        <button type="submit" class="btn-submit">
+            {% if is_new %}Create Measurement{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% url 'measurements' %}" class="btn-cancel">Cancel</a>
+    </div>
+</form>
+
+<!-- Server data -->
+<script id="server-data" type="application/json">
+{
+    "channels": {{ channels_json|safe }},
+    "existingInputs": {{ inputs_json|safe }}
+}
+</script>
+
+<script>
+    const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
+    const CHANNELS = SERVER_DATA.channels;
+    const EXISTING_INPUTS = SERVER_DATA.existingInputs;
+    
+    const inputs = [];
+    
+    function getNextLabel() {
+        const used = new Set(inputs.map(i => i.label));
+        for (let i = 0; i < 26; i++) {
+            const l = String.fromCharCode(65 + i);
+            if (!used.has(l)) return l;
+        }
+        for (let i = 0; i < 26; i++) {
+            for (let j = 0; j < 26; j++) {
+                const l = String.fromCharCode(65 + i) + String.fromCharCode(65 + j);
+                if (!used.has(l)) return l;
+            }
+        }
+        return 'A';
+    }
+    
+    function renderInputs() {
+        const container = document.getElementById('inputsContainer');
+        container.innerHTML = '';
+        
+        inputs.forEach((inp, idx) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.innerHTML = `
+                <span class="input-badge">${inp.label}</span>
+                <span class="input-arrow">→</span>
+                <select class="form-select input-channel-select" name="input_${idx}_channel" data-index="${idx}">
+                    <option value="">Select channel...</option>
+                    ${CHANNELS.map(ch => `
+                        <option value="${ch.index}" ${inp.channelIndex === ch.index ? 'selected' : ''}>${ch.label}</option>
+                    `).join('')}
+                </select>
+                <input type="hidden" name="input_${idx}_label" value="${inp.label}">
+                <button type="button" class="input-remove" data-index="${idx}">×</button>
+            `;
+            container.appendChild(row);
+        });
+        
+        document.getElementById('inputCount').value = inputs.length;
+        updateFormulaPreview();
+    }
+    
+    function addInput(label = null, channelIndex = null) {
+        inputs.push({ label: label || getNextLabel(), channelIndex });
+        renderInputs();
+    }
+    
+    function removeInput(idx) {
+        inputs.splice(idx, 1);
+        renderInputs();
+    }
+    
+    function updateFormulaPreview() {
+        const formula = document.getElementById('id_formula').value || 'A';
+        const mappings = inputs.map(inp => {
+            const ch = CHANNELS.find(c => c.index === inp.channelIndex);
+            return `${inp.label} = ${ch ? ch.label : '?'}`;
+        });
+        
+        document.getElementById('formulaPreview').textContent = formula;
+        document.getElementById('formulaMappings').textContent = 
+            mappings.length ? `where ${mappings.join(', ')}` : 'No inputs';
+    }
+    
+    function updateToleranceVisual() {
+        const nominal = document.getElementById('id_nominal').value;
+        const upper = document.getElementById('id_tolerance_upper').value;
+        const lower = document.getElementById('id_tolerance_lower').value || upper;
+        const container = document.getElementById('toleranceVisual');
+        
+        if (!upper) {
+            container.innerHTML = '<span class="tol-none">No tolerance set</span>';
+        } else {
+            container.innerHTML = `
+                <span class="tol-nominal">${nominal || '0'}</span>
+                <span class="tol-limits">
+                    <span class="tol-upper">+${upper}</span>
+                    <span class="tol-lower">−${lower}</span>
+                </span>
+            `;
+        }
+    }
+    
+    // Event listeners
+    document.getElementById('btnAddInput').addEventListener('click', () => addInput());
+    
+    document.getElementById('inputsContainer').addEventListener('click', e => {
+        if (e.target.classList.contains('input-remove')) {
+            removeInput(parseInt(e.target.dataset.index));
+        }
+    });
+    
+    document.getElementById('inputsContainer').addEventListener('change', e => {
+        if (e.target.classList.contains('input-channel-select')) {
+            const idx = parseInt(e.target.dataset.index);
+            inputs[idx].channelIndex = e.target.value ? parseInt(e.target.value) : null;
+            updateFormulaPreview();
+        }
+    });
+    
+    document.getElementById('id_formula').addEventListener('input', updateFormulaPreview);
+    
+    document.querySelectorAll('.formula-example').forEach(ex => {
+        ex.addEventListener('click', () => {
+            document.getElementById('id_formula').value = ex.dataset.formula;
+            updateFormulaPreview();
+        });
+    });
+    
+    ['id_nominal', 'id_tolerance_upper', 'id_tolerance_lower'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateToleranceVisual);
+    });
+    
+    // Initialize
+    if (EXISTING_INPUTS.length > 0) {
+        EXISTING_INPUTS.forEach(inp => {
+            inputs.push({ label: inp.label, channelIndex: inp.channel_index });
+        });
+        renderInputs();
+    } else {
+        addInput('A');
+    }
+    
+    updateToleranceVisual();
+</script>
+{% endblock %}

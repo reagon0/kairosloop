@@ -1,0 +1,295 @@
+{% comment %}
+dashboard/templates/dashboard/base.html
+Base template with shared nav, styles, and structure
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KairosLoop{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Industrial palette */
+            --bg-primary: #0a0a0a;
+            --bg-panel: #141414;
+            --bg-card: #1a1a1a;
+            --bg-recessed: #0d0d0d;
+            --bg-input: #0d0d0d;
+            --border-dark: #222;
+            --border-light: #333;
+            --text-primary: #e8e8e8;
+            --text-secondary: #888;
+            --text-dim: #555;
+            
+            /* Status colors */
+            --green: #00ff88;
+            --green-dim: #00cc6a;
+            --yellow: #ffcc00;
+            --red: #ff3333;
+            --blue: #0099ff;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        
+        /* ============================================
+           NAV
+           ============================================ */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-dark);
+        }
+        
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        
+        .nav-brand {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .nav-brand span {
+            color: var(--green);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .nav-link {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-recessed);
+            border-color: var(--border-dark);
+        }
+        
+        .nav-link.active {
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border-color: var(--border-dark);
+        }
+        
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+        }
+        
+        .nav-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        
+        .nav-status-indicator.connected {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+        
+        .nav-status-indicator.error {
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+        }
+        
+        .nav-status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .nav-stat {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 6px 10px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+        }
+        
+        .nav-stat strong {
+            color: var(--text-secondary);
+        }
+        
+        /* ============================================
+           MESSAGES
+           ============================================ */
+        .messages {
+            padding: 0 20px;
+            margin-top: 16px;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--green);
+            background: var(--bg-card);
+            font-size: 13px;
+        }
+        
+        .message.error {
+            border-left-color: var(--red);
+        }
+        
+        .message.warning {
+            border-left-color: var(--yellow);
+        }
+        
+        /* ============================================
+           BUTTONS (shared)
+           ============================================ */
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 8px 14px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.15s ease;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: var(--bg-card);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+        }
+        
+        .btn-primary {
+            background: var(--green-dim);
+            border-color: var(--green);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            background: var(--green);
+        }
+        
+        .btn-danger {
+            color: var(--red);
+        }
+        
+        .btn-danger:hover {
+            background: var(--red);
+            border-color: var(--red);
+            color: #000;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 10px;
+        }
+        
+        /* ============================================
+           FORMS (shared)
+           ============================================ */
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dark);
+            color: var(--text-primary);
+            transition: border-color 0.15s ease;
+        }
+        
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-dim);
+        }
+    </style>
+    {% block extra_styles %}<style></style>{% endblock %}
+</head>
+<body>
+    <!-- NAV -->
+    <nav class="nav">
+        <div class="nav-left">
+            <a href="{% url 'dashboard' %}" class="nav-brand">KAIROS<span>LOOP</span></a>
+            <div class="nav-links">
+                <a href="{% url 'dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+                <a href="{% url 'measurements' %}" class="nav-link {% block nav_measurements %}{% endblock %}">Measurements</a>
+                <a href="{% url 'setup' %}" class="nav-link {% block nav_setup %}{% endblock %}">Setup</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            {% block nav_right %}{% endblock %}
+        </div>
+    </nav>
+    
+    <!-- MESSAGES -->
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message {% if message.tags %}{{ message.tags }}{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% block content %}{% endblock %}
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

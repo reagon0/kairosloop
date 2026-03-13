@@ -1,6 +1,6 @@
 # dashboard/consumers.py
 """
-WebSocket consumers for live gauge data.
+WebSocket consumers for live gauge data and commands.
 
 Clients connect to:
     ws://localhost:8000/ws/gauge/        (all channels)
@@ -14,23 +14,28 @@ Server pushes messages like:
         "timestamp": "2026-03-12T06:18:45.288Z",
         "in_tolerance": true
     }
+
+Clients can send commands like:
+    {
+        "type": "command",
+        "command": "set_filter",
+        "level": 2
+    }
 """
 
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 
 
 class GaugeConsumer(AsyncWebsocketConsumer):
-    """WebSocket consumer for live gauge readings."""
+    """WebSocket consumer for live gauge readings and commands."""
     
     async def connect(self):
         # Get channel from URL, default to "all"
         self.gauge_channel = self.scope['url_route']['kwargs'].get('channel', 'all')
         self.room_group_name = f'gauge_{self.gauge_channel}'
-        
-        print(f"DEBUG: Joining groups: {self.room_group_name}, gauge_all")  # ADD THIS
         
         # Join room group
         await self.channel_layer.group_add(
@@ -46,17 +51,12 @@ class GaugeConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         
-        print(f"DEBUG: WebSocket connected, channel_name={self.channel_name}")  # ADD THIS
-        
         # Send connection confirmation
         await self.send(text_data=json.dumps({
             'type': 'connection_established',
             'channel': self.gauge_channel,
             'message': f'Connected to gauge channel: {self.gauge_channel}'
         }))
-
-
-
     
     async def disconnect(self, close_code):
         # Leave room groups
@@ -89,16 +89,102 @@ class GaugeConsumer(AsyncWebsocketConsumer):
                     'type': 'subscribed',
                     'channel': channel
                 }))
+            
+            elif message_type == 'command':
+                # Handle commands from dashboard
+                await self.handle_command(data)
         
         except json.JSONDecodeError:
             await self.send(text_data=json.dumps({
                 'type': 'error',
                 'message': 'Invalid JSON'
             }))
+        except Exception as e:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': str(e)
+            }))
+    
+    async def handle_command(self, data):
+        """Handle commands from the dashboard."""
+        command = data.get('command')
+        
+        try:
+            if command == 'set_filter':
+                level = data.get('level', 5)
+                await self.cmd_set_filter(level)
+                await self.send_command_response(command, True, f'Filter set to level {level}')
+            
+            elif command == 'master_channel':
+                channel = data.get('channel', 0)
+                await self.cmd_master_channel(channel)
+                await self.send_command_response(command, True, f'Channel {channel} mastered')
+            
+            elif command == 'master_all':
+                await self.cmd_master_all()
+                await self.send_command_response(command, True, 'All channels mastered')
+            
+            elif command == 'clear_masters':
+                await self.cmd_clear_masters()
+                await self.send_command_response(command, True, 'All master offsets cleared')
+            
+            else:
+                await self.send_command_response(command, False, f'Unknown command: {command}')
+        
+        except Exception as e:
+            await self.send_command_response(command, False, str(e))
+    
+    async def send_command_response(self, command, success, message):
+        """Send command response back to client."""
+        await self.send(text_data=json.dumps({
+            'type': 'command_response',
+            'command': command,
+            'success': success,
+            'message': message
+        }))
+    
+    # =========================================================================
+    # COMMAND IMPLEMENTATIONS
+    # =========================================================================
+    
+    @sync_to_async
+    def cmd_set_filter(self, level):
+        """Set filter level on gauge service."""
+        from devices.services import get_service
+        service = get_service()
+        if service.is_running:
+            service.set_filter(level)
+    
+    @sync_to_async
+    def cmd_master_channel(self, channel):
+        """Master a single channel."""
+        from devices.services import get_service
+        service = get_service()
+        if service.is_running:
+            service.master_channel(channel)
+    
+    @sync_to_async
+    def cmd_master_all(self):
+        """Master all channels."""
+        from devices.services import get_service
+        service = get_service()
+        if service.is_running:
+            service.master_all()
+    
+    @sync_to_async
+    def cmd_clear_masters(self):
+        """Clear all master offsets."""
+        from devices.services import get_service
+        service = get_service()
+        if service.is_running:
+            service.clear_all_masters()
+    
+    # =========================================================================
+    # EVENT HANDLERS (called by channel layer)
+    # =========================================================================
     
     async def gauge_reading(self, event):
         """Send gauge reading to WebSocket client."""
-        print(f"DEBUG: gauge_reading called with {event}")  # ADD THIS
         await self.send(text_data=json.dumps(event))
     
     async def gauge_offset(self, event):
@@ -110,9 +196,9 @@ class GaugeConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
 
-# -------------------------------------------------------------------------
-# Helper functions to broadcast from services.py
-# -------------------------------------------------------------------------
+# =============================================================================
+# BROADCAST HELPERS (called from services.py)
+# =============================================================================
 
 def broadcast_reading(channel: int, value: float, timestamp, in_tolerance: bool = True):
     """
