@@ -1,0 +1,336 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Controllers - KairosLoop{% endblock %}
+{% block nav_controller %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .page-subtitle {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+    
+    .btn-add {
+        background: transparent;
+        border: 1px solid var(--green);
+        color: var(--green);
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-add:hover {
+        background: var(--green);
+        color: var(--bg-primary);
+    }
+    
+    /* Controller Cards */
+    .controller-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 16px;
+    }
+    
+    .controller-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        padding: 20px;
+    }
+    
+    .controller-card:hover {
+        border-color: var(--border-light);
+    }
+    
+    .controller-card.inactive {
+        opacity: 0.6;
+    }
+    
+    .controller-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    
+    .controller-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .controller-type {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+    
+    .controller-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+    
+    .status-dot.connected {
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+    }
+    
+    .status-dot.disconnected {
+        background: var(--text-dim);
+    }
+    
+    .status-dot.error {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+    }
+    
+    .status-text {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    /* Connection Info */
+    .controller-connection {
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        padding: 12px;
+        margin-bottom: 16px;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .connection-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+    
+    .connection-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .connection-label {
+        color: var(--text-dim);
+    }
+    
+    .connection-value {
+        color: var(--text-primary);
+    }
+    
+    .connection-value.protocol {
+        color: var(--blue);
+    }
+    
+    /* Signal Count */
+    .signal-summary {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+        font-size: 12px;
+    }
+    
+    .signal-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .signal-label {
+        color: var(--text-dim);
+    }
+    
+    .signal-count {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--text-secondary);
+    }
+    
+    /* Controller Actions */
+    .controller-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .controller-actions .btn {
+        flex: 1;
+        text-align: center;
+        padding: 8px 12px;
+    }
+    
+    .btn-test {
+        border-color: var(--blue);
+        color: var(--blue);
+    }
+    
+    .btn-test:hover {
+        background: var(--blue);
+        color: #000;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-dim);
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Controller Config</h1>
+            <div class="page-subtitle">CNC/PLC connections and signal mapping</div>
+        </div>
+        <a href="{% url 'controller:controller_add' %}" class="btn-add">+ Add Controller</a>
+    </div>
+    
+    {% if controllers %}
+    <div class="controller-grid">
+        {% for ctrl in controllers %}
+        <div class="controller-card {% if not ctrl.active %}inactive{% endif %}">
+            <div class="controller-header">
+                <div>
+                    <div class="controller-name">{{ ctrl.name }}</div>
+                    <div class="controller-type">{{ ctrl.get_controller_type_display }}</div>
+                </div>
+                <div class="controller-status">
+                    <span class="status-dot {{ ctrl.status_display }}"></span>
+                    <span class="status-text">{{ ctrl.status_display }}</span>
+                </div>
+            </div>
+            
+            <div class="controller-connection">
+                <div class="connection-row">
+                    <span class="connection-label">Protocol</span>
+                    <span class="connection-value protocol">{{ ctrl.get_protocol_display }}</span>
+                </div>
+                <div class="connection-row">
+                    <span class="connection-label">Address</span>
+                    <span class="connection-value">{{ ctrl.connection_string }}</span>
+                </div>
+                <div class="connection-row">
+                    <span class="connection-label">Offset Method</span>
+                    <span class="connection-value">{{ ctrl.get_offset_method_display }}</span>
+                </div>
+            </div>
+            
+            <div class="signal-summary">
+                <div class="signal-group">
+                    <span class="signal-label">Inbound:</span>
+                    <span class="signal-count">
+                        {% with signals=ctrl.signal_cycle_complete|yesno:"1,0"|add:ctrl.signal_master_request|yesno:"1,0"|add:ctrl.signal_part_present|yesno:"1,0"|add:ctrl.signal_tool_change|yesno:"1,0" %}
+                        {{ signals }} configured
+                        {% endwith %}
+                    </span>
+                </div>
+                <div class="signal-group">
+                    <span class="signal-label">Outbound:</span>
+                    <span class="signal-count">
+                        {% with signals=ctrl.signal_ready|yesno:"1,0"|add:ctrl.signal_alarm|yesno:"1,0"|add:ctrl.signal_measuring|yesno:"1,0" %}
+                        {{ signals }} configured
+                        {% endwith %}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="controller-actions">
+                <a href="{% url 'controller:controller_edit' ctrl.id %}" class="btn">Edit</a>
+                <button type="button" class="btn btn-test" onclick="testConnection({{ ctrl.id }})">Test</button>
+                <a href="{% url 'controller:controller_delete' ctrl.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No controllers configured yet</p>
+        <a href="{% url 'controller:controller_add' %}" class="btn-add">+ Add Your First Controller</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function testConnection(controllerId) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+    
+    fetch(`/controller/${controllerId}/test/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.textContent = 'Connected!';
+            btn.style.borderColor = 'var(--green)';
+            btn.style.color = 'var(--green)';
+        } else {
+            btn.textContent = 'Failed';
+            btn.style.borderColor = 'var(--red)';
+            btn.style.color = 'var(--red)';
+            alert(data.message);
+        }
+        
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            btn.disabled = false;
+        }, 2000);
+    })
+    .catch(err => {
+        btn.textContent = 'Error';
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

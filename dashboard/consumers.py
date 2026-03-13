@@ -128,6 +128,10 @@ class GaugeConsumer(AsyncWebsocketConsumer):
                 await self.cmd_clear_masters()
                 await self.send_command_response(command, True, 'All master offsets cleared')
             
+            elif command == 'capture':
+                result = await self.cmd_capture()
+                await self.send_command_response(command, True, f'Captured {len(result.feature_results)} features')
+            
             else:
                 await self.send_command_response(command, False, f'Unknown command: {command}')
         
@@ -150,7 +154,7 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def cmd_set_filter(self, level):
         """Set filter level on gauge service."""
-        from devices.services import get_service
+        from measurement.services import get_service
         service = get_service()
         if service.is_running:
             service.set_filter(level)
@@ -158,7 +162,7 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def cmd_master_channel(self, channel):
         """Master a single channel."""
-        from devices.services import get_service
+        from measurement.services import get_service
         service = get_service()
         if service.is_running:
             service.master_channel(channel)
@@ -166,7 +170,7 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def cmd_master_all(self):
         """Master all channels."""
-        from devices.services import get_service
+        from measurement.services import get_service
         service = get_service()
         if service.is_running:
             service.master_all()
@@ -174,10 +178,16 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def cmd_clear_masters(self):
         """Clear all master offsets."""
-        from devices.services import get_service
+        from measurement.services import get_service
         service = get_service()
         if service.is_running:
             service.clear_all_masters()
+
+    @sync_to_async
+    def cmd_capture(self):
+        """Execute a measurement capture."""
+        from measurement.capture import capture_measurement
+        return capture_measurement(source='manual')
     
     # =========================================================================
     # EVENT HANDLERS (called by channel layer)
@@ -193,6 +203,10 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     
     async def gauge_status(self, event):
         """Send status update to WebSocket client."""
+        await self.send(text_data=json.dumps(event))
+
+    async def capture_result(self, event):
+        """Send capture result to WebSocket client."""
         await self.send(text_data=json.dumps(event))
 
 

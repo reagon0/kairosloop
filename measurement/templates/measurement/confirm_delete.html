@@ -1,0 +1,122 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Delete {{ object_type }} - KairosLoop{% endblock %}
+{% block nav_measurement %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .delete-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        padding: 32px;
+        text-align: center;
+    }
+    
+    .delete-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 20px;
+        border: 2px solid var(--red);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--red);
+        font-size: 24px;
+    }
+    
+    .delete-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .delete-message {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+    }
+    
+    .delete-object-name {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--text-primary);
+        background: var(--bg-recessed);
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+    
+    .delete-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+    }
+    
+    .btn-delete {
+        background: var(--red);
+        border: none;
+        color: #000;
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-delete:hover {
+        filter: brightness(1.1);
+    }
+    
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-cancel:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="delete-card">
+        <div class="delete-icon">×</div>
+        <div class="delete-title">Delete {{ object_type }}?</div>
+        <div class="delete-message">
+            Are you sure you want to delete <span class="delete-object-name">{{ object }}</span>?
+            This action cannot be undone.
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="delete-actions">
+                <button type="submit" class="btn-delete">Delete</button>
+                {% if cancel_id %}
+                <a href="{% url cancel_url cancel_id %}" class="btn-cancel">Cancel</a>
+                {% else %}
+                <a href="{% url cancel_url %}" class="btn-cancel">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Measurements - KairosLoop{% endblock %}
+{% block nav_measurement %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .page-header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .page-subtitle {
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+    
+    .header-tabs {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .header-tab {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        padding: 6px 12px;
+        background: transparent;
+        border: 1px solid var(--border-dark);
+        color: var(--text-secondary);
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        transition: all 0.15s ease;
+    }
+    
+    .header-tab:hover {
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+    
+    .header-tab.active {
+        background: var(--bg-card);
+        border-color: var(--border-light);
+        color: var(--text-primary);
+    }
+    
+    .btn-add {
+        background: transparent;
+        border: 1px solid var(--green);
+        color: var(--green);
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-add:hover {
+        background: var(--green);
+        color: var(--bg-primary);
+    }
+    
+    /* Table */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+    }
+    
+    .data-table th {
+        text-align: left;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-dark);
+        background: var(--bg-panel);
+    }
+    
+    .data-table td {
+        padding: 16px;
+        border-bottom: 1px solid var(--border-dark);
+        vertical-align: top;
+    }
+    
+    .data-table tr:hover {
+        background: var(--bg-panel);
+    }
+    
+    .data-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* Name Cell */
+    .cell-name {
+        min-width: 180px;
+    }
+    
+    .item-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 2px;
+    }
+    
+    .item-type {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    /* Formula Cell */
+    .cell-formula {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        color: var(--blue);
+    }
+    
+    .formula-expr {
+        margin-bottom: 4px;
+    }
+    
+    .formula-inputs {
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+    
+    .input-tag {
+        display: inline-block;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-right: 4px;
+        font-size: 10px;
+    }
+    
+    .input-tag .label {
+        color: var(--blue);
+        font-weight: 600;
+    }
+    
+    .input-tag .channel {
+        color: var(--text-dim);
+    }
+    
+    /* Tolerance Cell */
+    .cell-tolerance {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+    }
+    
+    .tol-nominal {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .tol-limits {
+        font-size: 11px;
+        margin-left: 6px;
+    }
+    
+    .tol-upper { color: var(--green); }
+    .tol-lower { color: var(--red); }
+    
+    .tol-none {
+        color: var(--text-dim);
+        font-style: italic;
+        font-family: inherit;
+        font-size: 12px;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-badge.active {
+        background: rgba(0, 255, 136, 0.1);
+        color: var(--green);
+    }
+    
+    .status-badge.inactive {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-dim);
+    }
+    
+    /* Actions */
+    .cell-actions {
+        white-space: nowrap;
+    }
+    
+    .btn-action {
+        background: transparent;
+        border: none;
+        color: var(--text-dim);
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-action:hover {
+        color: var(--text-primary);
+    }
+    
+    .btn-action.delete:hover {
+        color: var(--red);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-dim);
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div class="page-header-left">
+            <div>
+                <h1 class="page-title">Measurement Config</h1>
+                <div class="page-subtitle">Features, gauges, and channels</div>
+            </div>
+            <div class="header-tabs">
+                <a href="{% url 'measurement:feature_list' %}" class="header-tab active">Features</a>
+                <a href="{% url 'measurement:gauge_list' %}" class="header-tab">Gauges</a>
+            </div>
+        </div>
+        <a href="{% url 'measurement:feature_add' %}" class="btn-add">+ Add Feature</a>
+    </div>
+    
+    {% if features %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Formula</th>
+                <th>Tolerance</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for feature in features %}
+            <tr>
+                <td class="cell-name">
+                    <div class="item-name">{{ feature.name }}</div>
+                    <div class="item-type">{{ feature.get_feature_type_display }}</div>
+                </td>
+                
+                <td class="cell-formula">
+                    <div class="formula-expr">{{ feature.formula }}</div>
+                    <div class="formula-inputs">
+                        {% for inp in feature.resolved_inputs %}
+                        <span class="input-tag">
+                            <span class="label">{{ inp.label }}</span><span class="channel">={{ inp.display }}</span>
+                        </span>
+                        {% empty %}
+                        <span style="color: var(--text-dim); font-style: italic;">No inputs</span>
+                        {% endfor %}
+                    </div>
+                </td>
+                
+                <td class="cell-tolerance">
+                    {% if feature.tolerance_upper %}
+                        <span class="tol-nominal">{{ feature.nominal|default:"0" }}</span>
+                        <span class="tol-limits">
+                            <span class="tol-upper">+{{ feature.tolerance_upper }}</span>
+                            <span class="tol-lower">-{{ feature.tolerance_lower|default:feature.tolerance_upper }}</span>
+                        </span>
+                        <span style="color: var(--text-dim); font-size: 11px; margin-left: 4px;">{{ feature.unit }}</span>
+                    {% else %}
+                        <span class="tol-none">Not set</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <span class="status-badge {% if feature.active %}active{% else %}inactive{% endif %}">
+                        {% if feature.active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </td>
+                
+                <td class="cell-actions">
+                    <a href="{% url 'measurement:feature_edit' feature.id %}" class="btn-action">Edit</a>
+                    <a href="{% url 'measurement:feature_delete' feature.id %}" class="btn-action delete">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No features configured yet</p>
+        <a href="{% url 'measurement:feature_add' %}" class="btn-add">+ Add Your First Feature</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

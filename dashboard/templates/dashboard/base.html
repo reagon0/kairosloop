@@ -1,6 +1,13 @@
 {% comment %}
 dashboard/templates/dashboard/base.html
-Base template with shared nav, styles, and structure
+Base template with shared nav, styles, and structure.
+
+Nav structure:
+- Dashboard (live operator view)
+- Measurement (gauges, channels, features)
+- Compensation (compensation rules)
+- Controller (CNC/PLC configuration)
+- Data Log (future)
 {% endcomment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -258,6 +265,12 @@ Base template with shared nav, styles, and structure
         .form-input::placeholder {
             color: var(--text-dim);
         }
+        
+        .form-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--green);
+        }
     </style>
     {% block extra_styles %}<style></style>{% endblock %}
 </head>
@@ -265,11 +278,12 @@ Base template with shared nav, styles, and structure
     <!-- NAV -->
     <nav class="nav">
         <div class="nav-left">
-            <a href="{% url 'dashboard' %}" class="nav-brand">KAIROS<span>LOOP</span></a>
+            <a href="{% url 'dashboard:dashboard' %}" class="nav-brand">KAIROS<span>LOOP</span></a>
             <div class="nav-links">
-                <a href="{% url 'dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
-                <a href="{% url 'measurements' %}" class="nav-link {% block nav_measurements %}{% endblock %}">Measurements</a>
-                <a href="{% url 'setup' %}" class="nav-link {% block nav_setup %}{% endblock %}">Setup</a>
+                <a href="{% url 'dashboard:dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+                <a href="{% url 'measurement:feature_list' %}" class="nav-link {% block nav_measurement %}{% endblock %}">Measurement</a>
+                <a href="{% url 'compensation:rule_list' %}" class="nav-link {% block nav_compensation %}{% endblock %}">Compensation</a>
+                <a href="{% url 'controller:controller_list' %}" class="nav-link {% block nav_controller %}{% endblock %}">Controller</a>
             </div>
         </div>
         <div class="nav-right">

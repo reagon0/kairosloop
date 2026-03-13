@@ -1,0 +1,57 @@
+{% extends 'measurement/form_base.html' %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Channel - KairosLoop{% endblock %}
+{% block nav_measurement %}active{% endblock %}
+{% block page_title %}{% if is_new %}Add{% else %}Edit{% endif %} Channel{% endblock %}
+{% block page_subtitle %}Configure channel on {{ gauge.name }}{% endblock %}
+
+{% block form_content %}
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="form-card">
+        <div class="form-card-header">
+            <div class="form-card-title">Channel Settings</div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Channel Index</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">0-based hardware index. CH1 = index 0, CH2 = index 1, etc.</span>
+                    </span>
+                </div>
+                {{ form.channel_index }}
+                {{ form.channel_index.errors }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Name</label>
+                </div>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+        </div>
+        
+        <div class="form-row single">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Enabled</label>
+                </div>
+                <div style="padding-top: 4px;">
+                    {{ form.enabled }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-actions">
+        <button type="submit" class="btn-submit">
+            {% if is_new %}Add Channel{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% url 'measurement:gauge_edit' gauge.id %}" class="btn-cancel">Cancel</a>
+    </div>
+</form>
+{% endblock %}

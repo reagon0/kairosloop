@@ -1,0 +1,108 @@
+{% extends 'measurement/form_base.html' %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Gauge - KairosLoop{% endblock %}
+{% block nav_measurement %}active{% endblock %}
+{% block page_title %}{% if is_new %}Add{% else %}Edit{% endif %} Gauge{% endblock %}
+{% block page_subtitle %}Configure gauge hardware connection{% endblock %}
+
+{% block form_content %}
+<form method="post">
+    {% csrf_token %}
+    
+    <div class="form-card">
+        <div class="form-card-header">
+            <div class="form-card-title">Gauge Settings</div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Name</label>
+                </div>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Driver Type</label>
+                </div>
+                {{ form.driver_type }}
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Filter Level</label>
+                    <span class="info-tooltip">i
+                        <span class="tooltip-text">Higher values = smoother readings but slower response. 5 (32 samples) is typical.</span>
+                    </span>
+                </div>
+                {{ form.filter_level }}
+            </div>
+            
+            <div class="form-group">
+                <div class="form-label-row">
+                    <label class="form-label">Active</label>
+                </div>
+                <div style="padding-top: 8px;">
+                    {{ form.active }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if not is_new %}
+    <div class="form-card">
+        <div class="form-card-header">
+            <div class="form-card-title">Channels</div>
+            <a href="{% url 'measurement:channel_add' gauge.id %}" class="btn btn-sm">+ Add Channel</a>
+        </div>
+        
+        {% if channels %}
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; font-size: 10px; color: var(--text-dim); padding: 8px 12px; border-bottom: 1px solid var(--border-dark);">Index</th>
+                    <th style="text-align: left; font-size: 10px; color: var(--text-dim); padding: 8px 12px; border-bottom: 1px solid var(--border-dark);">Name</th>
+                    <th style="text-align: left; font-size: 10px; color: var(--text-dim); padding: 8px 12px; border-bottom: 1px solid var(--border-dark);">Status</th>
+                    <th style="padding: 8px 12px; border-bottom: 1px solid var(--border-dark);"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ch in channels %}
+                <tr>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-dark); font-family: 'JetBrains Mono', monospace; color: var(--blue);">CH{{ ch.display_index }}</td>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-dark);">{{ ch.name }}</td>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-dark);">
+                        {% if ch.enabled %}
+                        <span style="color: var(--green); font-size: 11px;">Enabled</span>
+                        {% else %}
+                        <span style="color: var(--text-dim); font-size: 11px;">Disabled</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-dark); text-align: right;">
+                        <a href="{% url 'measurement:channel_edit' ch.id %}" style="color: var(--text-dim); font-size: 11px; text-decoration: none;">Edit</a>
+                        <a href="{% url 'measurement:channel_delete' ch.id %}" style="color: var(--text-dim); font-size: 11px; text-decoration: none; margin-left: 12px;">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 32px; color: var(--text-dim);">
+            No channels configured yet
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="form-actions">
+        <button type="submit" class="btn-submit">
+            {% if is_new %}Create Gauge{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% url 'measurement:gauge_list' %}" class="btn-cancel">Cancel</a>
+    </div>
+</form>
+{% endblock %}

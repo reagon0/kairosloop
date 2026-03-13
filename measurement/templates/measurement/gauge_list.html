@@ -1,0 +1,283 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Gauges - KairosLoop{% endblock %}
+{% block nav_measurement %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .page-header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .page-subtitle {
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+    
+    .header-tabs {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .header-tab {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        padding: 6px 12px;
+        background: transparent;
+        border: 1px solid var(--border-dark);
+        color: var(--text-secondary);
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        transition: all 0.15s ease;
+    }
+    
+    .header-tab:hover {
+        background: var(--bg-card);
+        color: var(--text-primary);
+    }
+    
+    .header-tab.active {
+        background: var(--bg-card);
+        border-color: var(--border-light);
+        color: var(--text-primary);
+    }
+    
+    .btn-add {
+        background: transparent;
+        border: 1px solid var(--green);
+        color: var(--green);
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-add:hover {
+        background: var(--green);
+        color: var(--bg-primary);
+    }
+    
+    /* Gauge Cards */
+    .gauge-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 16px;
+    }
+    
+    .gauge-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        padding: 20px;
+    }
+    
+    .gauge-card:hover {
+        border-color: var(--border-light);
+    }
+    
+    .gauge-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    
+    .gauge-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .gauge-type {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-top: 2px;
+    }
+    
+    .gauge-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--text-dim);
+    }
+    
+    .gauge-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-dim);
+    }
+    
+    .gauge-status-dot.active {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+    }
+    
+    .gauge-channels {
+        margin-bottom: 16px;
+    }
+    
+    .gauge-channels-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+    
+    .channel-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .channel-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        padding: 4px 8px;
+        border-radius: 3px;
+    }
+    
+    .channel-tag .ch-num {
+        color: var(--blue);
+        font-weight: 600;
+    }
+    
+    .channel-tag .ch-name {
+        color: var(--text-secondary);
+        margin-left: 4px;
+    }
+    
+    .channel-tag.disabled {
+        opacity: 0.5;
+    }
+    
+    .no-channels {
+        font-size: 12px;
+        color: var(--text-dim);
+        font-style: italic;
+    }
+    
+    .gauge-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .gauge-actions .btn {
+        flex: 1;
+        text-align: center;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-dim);
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div class="page-header-left">
+            <div>
+                <h1 class="page-title">Measurement Config</h1>
+                <div class="page-subtitle">Features, gauges, and channels</div>
+            </div>
+            <div class="header-tabs">
+                <a href="{% url 'measurement:feature_list' %}" class="header-tab">Features</a>
+                <a href="{% url 'measurement:gauge_list' %}" class="header-tab active">Gauges</a>
+            </div>
+        </div>
+        <a href="{% url 'measurement:gauge_add' %}" class="btn-add">+ Add Gauge</a>
+    </div>
+    
+    {% if gauges %}
+    <div class="gauge-grid">
+        {% for gauge in gauges %}
+        <div class="gauge-card">
+            <div class="gauge-header">
+                <div>
+                    <div class="gauge-name">{{ gauge.name }}</div>
+                    <div class="gauge-type">{{ gauge.get_driver_type_display }}</div>
+                </div>
+                <div class="gauge-status">
+                    <span class="gauge-status-dot {% if gauge.active %}active{% endif %}"></span>
+                    {% if gauge.active %}Active{% else %}Inactive{% endif %}
+                </div>
+            </div>
+            
+            <div class="gauge-channels">
+                <div class="gauge-channels-label">Channels</div>
+                {% if gauge.channels.exists %}
+                <div class="channel-list">
+                    {% for ch in gauge.channels.all %}
+                    <span class="channel-tag {% if not ch.enabled %}disabled{% endif %}">
+                        <span class="ch-num">CH{{ ch.display_index }}</span>
+                        <span class="ch-name">{{ ch.name }}</span>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="no-channels">No channels configured</div>
+                {% endif %}
+            </div>
+            
+            <div class="gauge-actions">
+                <a href="{% url 'measurement:gauge_edit' gauge.id %}" class="btn">Edit</a>
+                <a href="{% url 'measurement:gauge_delete' gauge.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No gauges configured yet</p>
+        <a href="{% url 'measurement:gauge_add' %}" class="btn-add">+ Add Your First Gauge</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

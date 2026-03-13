@@ -1,0 +1,455 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Compensation Rule - KairosLoop{% endblock %}
+{% block nav_compensation %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        margin-bottom: 24px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 4px 0;
+    }
+    
+    .page-subtitle {
+        font-size: 13px;
+        color: var(--text-dim);
+    }
+    
+    /* Form Cards */
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        padding: 20px 24px;
+        margin-bottom: 20px;
+    }
+    
+    .form-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .form-card-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Form Layout */
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .form-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-row.triple {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+    
+    .form-row.quad {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-label-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .form-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+    
+    .info-tooltip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        background: transparent;
+        border: 1px solid var(--text-dim);
+        border-radius: 50%;
+        font-size: 9px;
+        font-style: italic;
+        font-weight: 600;
+        color: var(--text-dim);
+        cursor: help;
+    }
+    
+    .info-tooltip:hover {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: white;
+    }
+    
+    .info-tooltip .tooltip-text {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-panel);
+        border: 1px solid var(--border-light);
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--text-primary);
+        text-transform: none;
+        letter-spacing: normal;
+        white-space: normal;
+        width: 220px;
+        line-height: 1.5;
+        z-index: 100;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .info-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+    
+    /* Status Section */
+    {% if not is_new %}
+    .status-section {
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+    
+    .status-item {
+        text-align: center;
+    }
+    
+    .status-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .status-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .status-value.ok { color: var(--green); }
+    .status-value.warning { color: var(--yellow); }
+    .status-value.critical { color: var(--red); }
+    {% endif %}
+    
+    /* Actions */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .btn-submit {
+        background: var(--green);
+        border: none;
+        color: #000;
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+    }
+    
+    .btn-submit:hover {
+        filter: brightness(1.1);
+    }
+    
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .btn-cancel:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+    
+    .btn-reset {
+        margin-left: auto;
+        background: transparent;
+        border: 1px solid var(--yellow);
+        color: var(--yellow);
+        padding: 12px 20px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+    }
+    
+    .btn-reset:hover {
+        background: var(--yellow);
+        color: #000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">{% if is_new %}Add{% else %}Edit{% endif %} Compensation Rule</h1>
+        <div class="page-subtitle">Configure when and how to compensate tool wear</div>
+    </div>
+    
+    {% if not is_new %}
+    <div class="status-section">
+        <div class="status-grid">
+            <div class="status-item">
+                <div class="status-label">Accumulated</div>
+                <div class="status-value {{ rule.wear_status }}">{{ rule.accumulated_offset|floatformat:4 }}</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Wear Limit</div>
+                <div class="status-value">{{ rule.wear_limit }}</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Last Adjust</div>
+                <div class="status-value">{% if rule.last_adjustment %}{{ rule.last_adjustment|floatformat:4 }}{% else %}—{% endif %}</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Wear %</div>
+                <div class="status-value {{ rule.wear_status }}">{{ rule.wear_percentage|floatformat:0 }}%</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <!-- LINKS -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Feature & Controller</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Feature</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">The measurement feature to monitor for compensation</span>
+                        </span>
+                    </div>
+                    {{ form.feature }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Controller</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">The CNC controller to send offset adjustments to</span>
+                        </span>
+                    </div>
+                    {{ form.controller }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- TOOL MAPPING -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Tool Mapping</div>
+            </div>
+            
+            <div class="form-row quad">
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Tool Number</label>
+                    </div>
+                    {{ form.tool_number }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Offset Register</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">Leave blank to use tool number. Use D01, H01, etc. for specific registers.</span>
+                        </span>
+                    </div>
+                    {{ form.offset_register }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Axis</label>
+                    </div>
+                    {{ form.offset_axis }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Direction</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">-1 = compensate (most common). +1 = amplify deviation.</span>
+                        </span>
+                    </div>
+                    {{ form.offset_direction }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- TRIGGER LOGIC -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Trigger Logic</div>
+            </div>
+            
+            <div class="form-row triple">
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Trigger Mode</label>
+                    </div>
+                    {{ form.trigger_mode }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Threshold</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">Compensate when |deviation| exceeds this value</span>
+                        </span>
+                    </div>
+                    {{ form.trigger_threshold }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Sample Count</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">For Average mode: number of samples to average before compensating</span>
+                        </span>
+                    </div>
+                    {{ form.sample_count }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- SAFETY LIMITS -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Safety Limits</div>
+            </div>
+            
+            <div class="form-row triple">
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Max Per Cycle</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">Maximum offset adjustment per cycle (safety cap)</span>
+                        </span>
+                    </div>
+                    {{ form.max_per_cycle }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Wear Limit</label>
+                        <span class="info-tooltip">i
+                            <span class="tooltip-text">Alert/stop when accumulated offset reaches this value</span>
+                        </span>
+                    </div>
+                    {{ form.wear_limit }}
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Wear Action</label>
+                    </div>
+                    {{ form.wear_limit_action }}
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <div class="form-label-row">
+                        <label class="form-label">Active</label>
+                    </div>
+                    <div style="padding-top: 4px;">
+                        {{ form.active }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ACTIONS -->
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">
+                {% if is_new %}Create Rule{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'compensation:rule_list' %}" class="btn-cancel">Cancel</a>
+            
+            {% if not is_new %}
+            <form method="post" action="{% url 'compensation:rule_reset' rule.id %}" style="margin-left: auto;">
+                {% csrf_token %}
+                <button type="submit" class="btn-reset" onclick="return confirm('Reset accumulated offset to zero?');">Reset Accumulated</button>
+            </form>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

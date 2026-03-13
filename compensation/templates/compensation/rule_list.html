@@ -1,0 +1,308 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Compensation Rules - KairosLoop{% endblock %}
+{% block nav_compensation %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .page-subtitle {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+    
+    .btn-add {
+        background: transparent;
+        border: 1px solid var(--green);
+        color: var(--green);
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-add:hover {
+        background: var(--green);
+        color: var(--bg-primary);
+    }
+    
+    /* Rule Cards */
+    .rule-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 16px;
+    }
+    
+    .rule-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        padding: 20px;
+    }
+    
+    .rule-card:hover {
+        border-color: var(--border-light);
+    }
+    
+    .rule-card.inactive {
+        opacity: 0.6;
+    }
+    
+    .rule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .rule-feature {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .rule-controller {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+    
+    .rule-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .rule-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    
+    .rule-status-dot.active {
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+    }
+    
+    .rule-status-dot.inactive {
+        background: var(--text-dim);
+    }
+    
+    .rule-status-text {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    /* Rule Details */
+    .rule-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .rule-detail {
+        background: var(--bg-recessed);
+        padding: 10px 12px;
+        border: 1px solid var(--border-dark);
+    }
+    
+    .rule-detail-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .rule-detail-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+    
+    .rule-detail-value.tool {
+        color: var(--blue);
+    }
+    
+    /* Wear Bar */
+    .wear-section {
+        margin-bottom: 16px;
+    }
+    
+    .wear-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+    
+    .wear-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .wear-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .wear-bar {
+        height: 6px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        overflow: hidden;
+    }
+    
+    .wear-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .wear-bar-fill.ok {
+        background: var(--green);
+    }
+    
+    .wear-bar-fill.warning {
+        background: var(--yellow);
+    }
+    
+    .wear-bar-fill.critical {
+        background: var(--red);
+    }
+    
+    /* Rule Actions */
+    .rule-actions {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .rule-actions .btn {
+        flex: 1;
+        text-align: center;
+        padding: 8px 12px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-dim);
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Compensation Config</h1>
+            <div class="page-subtitle">Rules for automatic tool offset adjustment</div>
+        </div>
+        <a href="{% url 'compensation:rule_add' %}" class="btn-add">+ Add Rule</a>
+    </div>
+    
+    {% if rules %}
+    <div class="rule-grid">
+        {% for rule in rules %}
+        <div class="rule-card {% if not rule.active %}inactive{% endif %}">
+            <div class="rule-header">
+                <div>
+                    <div class="rule-feature">{{ rule.feature.name }}</div>
+                    <div class="rule-controller">→ {{ rule.controller.name }}</div>
+                </div>
+                <div class="rule-status">
+                    <span class="rule-status-dot {% if rule.active %}active{% else %}inactive{% endif %}"></span>
+                    <span class="rule-status-text">{% if rule.active %}Active{% else %}Inactive{% endif %}</span>
+                </div>
+            </div>
+            
+            <div class="rule-details">
+                <div class="rule-detail">
+                    <div class="rule-detail-label">Tool</div>
+                    <div class="rule-detail-value tool">T{{ rule.tool_number }}{% if rule.offset_register %} ({{ rule.offset_register }}){% endif %}</div>
+                </div>
+                <div class="rule-detail">
+                    <div class="rule-detail-label">Threshold</div>
+                    <div class="rule-detail-value">±{{ rule.trigger_threshold }}</div>
+                </div>
+                <div class="rule-detail">
+                    <div class="rule-detail-label">Max/Cycle</div>
+                    <div class="rule-detail-value">{{ rule.max_per_cycle }}</div>
+                </div>
+                <div class="rule-detail">
+                    <div class="rule-detail-label">Last Adjust</div>
+                    <div class="rule-detail-value">{% if rule.last_adjustment %}{{ rule.last_adjustment|floatformat:4 }}{% else %}—{% endif %}</div>
+                </div>
+            </div>
+            
+            <div class="wear-section">
+                <div class="wear-header">
+                    <span class="wear-label">Accumulated Wear</span>
+                    <span class="wear-value">{{ rule.accumulated_offset|floatformat:4 }} / {{ rule.wear_limit }}</span>
+                </div>
+                <div class="wear-bar">
+                    <div class="wear-bar-fill {{ rule.wear_status }}" style="width: {% if rule.wear_percentage > 100 %}100{% else %}{{ rule.wear_percentage }}{% endif %}%;"></div>
+                </div>
+            </div>
+            
+            <div class="rule-actions">
+                <a href="{% url 'compensation:rule_edit' rule.id %}" class="btn">Edit</a>
+                <form method="post" action="{% url 'compensation:rule_toggle' rule.id %}" style="flex: 1;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="width: 100%;">{% if rule.active %}Disable{% else %}Enable{% endif %}</button>
+                </form>
+                <a href="{% url 'compensation:rule_delete' rule.id %}" class="btn btn-danger">Delete</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No compensation rules configured yet</p>
+        <a href="{% url 'compensation:rule_add' %}" class="btn-add">+ Add Your First Rule</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,480 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}{% if is_new %}Add{% else %}Edit{% endif %} Controller{% endblock %}
+{% block nav_controller %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        margin-bottom: 24px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0 0 4px 0;
+    }
+    
+    .page-subtitle {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    
+    /* Form Cards */
+    .form-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 8px;
+        padding: 20px 24px;
+        margin-bottom: 20px;
+    }
+    
+    .form-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .form-card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .form-row:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-row.single {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row.triple {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+    
+    .form-row.quad {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+    }
+    
+    .form-help {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+    
+    /* Signal sections */
+    .signal-section {
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .signal-section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+    }
+    
+    .signal-direction {
+        display: inline-block;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-left: 8px;
+    }
+    
+    .signal-direction.inbound {
+        background: rgba(0, 153, 255, 0.1);
+        color: var(--blue);
+    }
+    
+    .signal-direction.outbound {
+        background: rgba(0, 255, 136, 0.1);
+        color: var(--green);
+    }
+    
+    /* Status indicator */
+    .status-card {
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-dim);
+    }
+    
+    .status-indicator.connected {
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+    }
+    
+    .status-indicator.error {
+        background: var(--red);
+        box-shadow: 0 0 8px var(--red);
+    }
+    
+    .status-text {
+        flex: 1;
+    }
+    
+    .status-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .status-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+    }
+    
+    /* Actions */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .btn-submit {
+        background: var(--green);
+        border: none;
+        color: #000;
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-submit:hover {
+        filter: brightness(1.1);
+    }
+    
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-cancel:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+    
+    .btn-test {
+        background: transparent;
+        border: 1px solid var(--blue);
+        color: var(--blue);
+        padding: 12px 28px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+        margin-left: auto;
+    }
+    
+    .btn-test:hover {
+        background: var(--blue);
+        color: #000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">{% if is_new %}Add{% else %}Edit{% endif %} Controller</h1>
+        <p class="page-subtitle">Configure CNC/PLC connection and signal mapping</p>
+    </div>
+    
+    <form method="post" id="controllerForm">
+        {% csrf_token %}
+        
+        <!-- IDENTITY -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Identity</div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    {{ form.name }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Controller Type</label>
+                    {{ form.controller_type }}
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Protocol</label>
+                    {{ form.protocol }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Active</label>
+                    <div style="padding-top: 6px;">
+                        {{ form.active }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- CONNECTION -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Connection</div>
+            </div>
+            
+            <div class="form-row triple">
+                <div class="form-group">
+                    <label class="form-label">Host / IP Address</label>
+                    {{ form.host }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Port</label>
+                    {{ form.port }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Timeout (ms)</label>
+                    {{ form.timeout_ms }}
+                </div>
+            </div>
+            
+            {% if not is_new %}
+            <div class="status-card">
+                <div class="status-indicator {% if controller.connected %}connected{% elif controller.last_error %}error{% endif %}"></div>
+                <div class="status-text">
+                    <div class="status-label">
+                        {% if controller.connected %}
+                            Connected
+                        {% elif controller.last_error %}
+                            Error: {{ controller.last_error }}
+                        {% else %}
+                            Disconnected
+                        {% endif %}
+                    </div>
+                    {% if controller.last_heartbeat %}
+                    <div class="status-value">Last seen: {{ controller.last_heartbeat|timesince }} ago</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- SIGNALS - INBOUND -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">
+                    Signals
+                    <span class="signal-direction inbound">PLC → KairosLoop</span>
+                </div>
+            </div>
+            
+            <div class="signal-section">
+                <div class="signal-section-title">Inbound Signals (from PLC)</div>
+                <div class="form-row quad">
+                    <div class="form-group">
+                        <label class="form-label">Cycle Complete</label>
+                        {{ form.signal_cycle_complete }}
+                        <span class="form-help">Triggers measurement</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Master Request</label>
+                        {{ form.signal_master_request }}
+                        <span class="form-help">Triggers zeroing</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Part Present</label>
+                        {{ form.signal_part_present }}
+                        <span class="form-help">Fixture sensor</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tool Change</label>
+                        {{ form.signal_tool_change }}
+                        <span class="form-help">Resets wear tracking</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="signal-section">
+                <div class="signal-section-title">
+                    Outbound Signals (to PLC)
+                    <span class="signal-direction outbound">KairosLoop → PLC</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Ready</label>
+                        {{ form.signal_ready }}
+                        <span class="form-help">Measurement complete</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Measuring</label>
+                        {{ form.signal_measuring }}
+                        <span class="form-help">Measurement in progress</span>
+                    </div>
+                </div>
+                <div class="form-row triple">
+                    <div class="form-group">
+                        <label class="form-label">Pass</label>
+                        {{ form.signal_pass }}
+                        <span class="form-help">Part in tolerance</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fail</label>
+                        {{ form.signal_fail }}
+                        <span class="form-help">Part out of tolerance</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alarm</label>
+                        {{ form.signal_alarm }}
+                        <span class="form-help">System fault</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- OFFSET SETTINGS -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <div class="form-card-title">Offset Settings</div>
+            </div>
+            
+            <div class="form-row triple">
+                <div class="form-group">
+                    <label class="form-label">Offset Method</label>
+                    {{ form.offset_method }}
+                    <span class="form-help">How offsets are written</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resolution (mm)</label>
+                    {{ form.offset_resolution }}
+                    <span class="form-help">Minimum increment</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Write Delay (ms)</label>
+                    {{ form.offset_write_delay_ms }}
+                    <span class="form-help">Delay after write</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ACTIONS -->
+        <div class="form-actions">
+            <button type="submit" class="btn-submit">
+                {% if is_new %}Create Controller{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'controller:controller_list' %}" class="btn-cancel">Cancel</a>
+            {% if not is_new %}
+            <button type="button" class="btn-test" id="btnTest">Test Connection</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+{% if not is_new %}
+<script>
+document.getElementById('btnTest').addEventListener('click', function() {
+    const btn = this;
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+    
+    fetch('{% url "controller:controller_test" controller.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.textContent = '✓ Connected';
+            btn.style.borderColor = 'var(--green)';
+            btn.style.color = 'var(--green)';
+        } else {
+            btn.textContent = '✗ Failed';
+            btn.style.borderColor = 'var(--red)';
+            btn.style.color = 'var(--red)';
+            alert(data.message);
+        }
+        setTimeout(() => {
+            btn.textContent = 'Test Connection';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            btn.disabled = false;
+        }, 3000);
+    })
+    .catch(err => {
+        btn.textContent = '✗ Error';
+        btn.disabled = false;
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

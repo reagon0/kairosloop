@@ -1,1244 +1,1233 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KairosLoop — Multi-Channel Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Industrial palette — machined steel, warning colors */
-            --bg-primary: #0a0a0a;
-            --bg-panel: #141414;
-            --bg-channel: #1a1a1a;
-            --bg-recessed: #0d0d0d;
-            --border-dark: #222;
-            --border-light: #333;
-            --text-primary: #e8e8e8;
-            --text-secondary: #888;
-            --text-dim: #555;
-            
-            /* Status colors — high contrast industrial */
-            --green-nominal: #00ff88;
-            --green-dim: #00cc6a;
-            --yellow-warn: #ffcc00;
-            --red-alarm: #ff3333;
-            --blue-info: #0099ff;
-            
-            /* Deviation bar */
-            --bar-bg: #1a1a1a;
-            --bar-nominal: #00ff88;
-            --bar-warn: #ffcc00;
-            --bar-alarm: #ff3333;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        
-        /* ============================================
-           HEADER — Control panel style
-           ============================================ */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 20px;
-            background: var(--bg-panel);
-            border-bottom: 1px solid var(--border-dark);
-        }
-        
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .logo {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 15px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            color: var(--text-primary);
-            text-decoration: none;
-        }
-        
-        .logo span {
-            color: var(--green-nominal);
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 4px;
-        }
-        
-        .nav-link {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 8px 14px;
-            background: transparent;
-            border: 1px solid transparent;
-            color: var(--text-secondary);
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.15s ease;
-        }
-        
-        .nav-link:hover {
-            color: var(--text-primary);
-            background: var(--bg-recessed);
-            border-color: var(--border-dark);
-        }
-        
-        .nav-link.active {
-            color: var(--text-primary);
-            background: var(--bg-channel);
-            border-color: var(--border-dark);
-        }
-        
-        .system-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            border-radius: 2px;
-        }
-        
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text-dim);
-        }
-        
-        .status-indicator.connected {
-            background: var(--green-nominal);
-            box-shadow: 0 0 8px var(--green-nominal);
-        }
-        
-        .status-indicator.error {
-            background: var(--red-alarm);
-            box-shadow: 0 0 8px var(--red-alarm);
-            animation: pulse-error 1s ease-in-out infinite;
-        }
-        
-        @keyframes pulse-error {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .status-text {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .header-stat {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text-dim);
-            padding: 6px 10px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-        }
-        
-        .header-stat strong {
-            color: var(--text-secondary);
-        }
-        
-        /* ============================================
-           TOOLBAR — View controls
-           ============================================ */
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            background: var(--bg-panel);
-            border-bottom: 1px solid var(--border-dark);
-        }
-        
-        .view-controls {
-            display: flex;
-            gap: 4px;
-        }
-        
-        .view-btn {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 6px 12px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        
-        .view-btn:hover {
-            background: var(--bg-channel);
-            border-color: var(--border-light);
-        }
-        
-        .view-btn.active {
-            background: var(--border-light);
-            color: var(--text-primary);
-            border-color: var(--border-light);
-        }
-        
-        .toolbar-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        
-        .toolbar-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 0 12px;
-            border-left: 1px solid var(--border-dark);
-        }
-        
-        .toolbar-group:first-child {
-            border-left: none;
-            padding-left: 0;
-        }
-        
-        .toolbar-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        
-        .toolbar-select {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 5px 8px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            color: var(--text-secondary);
-            cursor: pointer;
-            appearance: none;
-            -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23888' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 6px center;
-            padding-right: 20px;
-        }
-        
-        .toolbar-select:hover {
-            border-color: var(--border-light);
-            color: var(--text-primary);
-        }
-        
-        .toolbar-select:focus {
-            outline: none;
-            border-color: var(--blue-info);
-        }
-        
-        .action-btn {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 6px 14px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        
-        .action-btn:hover {
-            background: var(--bg-channel);
-            border-color: var(--border-light);
-            color: var(--text-primary);
-        }
-        
-        .action-btn.primary {
-            background: var(--green-dim);
-            border-color: var(--green-nominal);
-            color: #000;
-        }
-        
-        .action-btn.primary:hover {
-            background: var(--green-nominal);
-        }
-        
-        .action-btn.master {
-            background: var(--blue-info);
-            border-color: var(--blue-info);
-            color: #000;
-        }
-        
-        .action-btn.master:hover {
-            background: #33aaff;
-        }
-        
-        /* ============================================
-           CHANNEL GRID
-           ============================================ */
-        .channel-grid {
-            display: grid;
-            gap: 1px;
-            background: var(--border-dark);
-            padding: 1px;
-        }
-        
-        .channel-grid.grid-2 { grid-template-columns: repeat(2, 1fr); }
-        .channel-grid.grid-4 { grid-template-columns: repeat(2, 1fr); }
-        .channel-grid.grid-8 { grid-template-columns: repeat(4, 1fr); }
-        .channel-grid.grid-16 { grid-template-columns: repeat(4, 1fr); }
-        
-        /* ============================================
-           CHANNEL CARD
-           ============================================ */
-        .channel-card {
-            background: var(--bg-channel);
-            padding: 16px;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-        
-        .channel-card.disabled {
-            opacity: 0.4;
-        }
-        
-        .channel-card.alarm {
-            background: linear-gradient(135deg, #1a0a0a 0%, var(--bg-channel) 100%);
-            border-left: 2px solid var(--red-alarm);
-        }
-        
-        .channel-card.warn {
-            border-left: 2px solid var(--yellow-warn);
-        }
-        
-        .channel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        
-        .channel-header-right {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .channel-master-btn {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            color: var(--text-dim);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .channel-master-btn:hover {
-            background: var(--blue-info);
-            border-color: var(--blue-info);
-            color: #000;
-        }
-        
-        .channel-id {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .channel-name {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 2px;
-        }
-        
-        .channel-status {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            padding: 3px 6px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            color: var(--text-dim);
-            text-transform: uppercase;
-        }
-        
-        .channel-status.ok {
-            color: var(--green-nominal);
-            border-color: var(--green-dim);
-        }
-        
-        .channel-status.warn {
-            color: var(--yellow-warn);
-            border-color: var(--yellow-warn);
-        }
-        
-        .channel-status.alarm {
-            color: var(--red-alarm);
-            border-color: var(--red-alarm);
-            animation: pulse-error 1s ease-in-out infinite;
-        }
-        
-        /* Main reading display */
-        .reading-display {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .reading-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 36px;
-            font-weight: 700;
-            line-height: 1;
-            color: var(--text-primary);
-            letter-spacing: -1px;
-        }
-        
-        .reading-value .unit {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-dim);
-            margin-left: 4px;
-        }
-        
-        .reading-value.alarm {
-            color: var(--red-alarm);
-        }
-        
-        .reading-value.warn {
-            color: var(--yellow-warn);
-        }
-        
-        .master-offset {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: var(--blue-info);
-            margin-top: 4px;
-            height: 14px;
-        }
-        
-        .master-offset.active {
-            color: var(--blue-info);
-        }
-        
-        /* Deviation display */
-        .deviation-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 8px;
-        }
-        
-        .deviation-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-        
-        .deviation-value.positive { color: var(--red-alarm); }
-        .deviation-value.negative { color: var(--blue-info); }
-        .deviation-value.nominal { color: var(--green-nominal); }
-        
-        /* Deviation bar — the key visual */
-        .deviation-bar-container {
-            flex: 1;
-            height: 8px;
-            background: var(--bg-recessed);
-            border: 1px solid var(--border-dark);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .deviation-bar-center {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: var(--text-dim);
-        }
-        
-        .deviation-bar-fill {
-            position: absolute;
-            top: 1px;
-            bottom: 1px;
-            background: var(--green-nominal);
-            transition: all 0.1s ease;
-        }
-        
-        .deviation-bar-fill.warn {
-            background: var(--yellow-warn);
-        }
-        
-        .deviation-bar-fill.alarm {
-            background: var(--red-alarm);
-        }
-        
-        /* Tolerance markers */
-        .deviation-bar-limit {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 1px;
-            background: var(--yellow-warn);
-            opacity: 0.6;
-        }
-        
-        /* Stats row */
-        .stats-row {
-            display: flex;
-            gap: 16px;
-            margin-top: 12px;
-            padding-top: 10px;
-            border-top: 1px solid var(--border-dark);
-        }
-        
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .stat-label {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        
-        .stat-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        
-        /* ============================================
-           FOOTER — System info
-           ============================================ */
-        .footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 20px;
-            background: var(--bg-panel);
-            border-top: 1px solid var(--border-dark);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: var(--text-dim);
-        }
-        
-        .footer-left {
-            display: flex;
-            gap: 20px;
-        }
-        
-        .footer-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .footer-item strong {
-            color: var(--text-secondary);
-        }
-        
-        /* ============================================
-           LOG PANEL (collapsible)
-           ============================================ */
-        .log-panel {
-            background: var(--bg-panel);
-            border-top: 1px solid var(--border-dark);
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-        
-        .log-panel.open {
-            max-height: 200px;
-        }
-        
-        .log-content {
-            padding: 12px 20px;
-            height: 180px;
-            overflow-y: auto;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-        }
-        
-        .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid var(--border-dark);
-            display: flex;
-            gap: 12px;
-        }
-        
-        .log-time {
-            color: var(--text-dim);
-            flex-shrink: 0;
-        }
-        
-        .log-channel {
-            color: var(--blue-info);
-            flex-shrink: 0;
-            width: 50px;
-        }
-        
-        .log-message {
-            color: var(--text-secondary);
-        }
-        
-        .log-entry.offset .log-message {
-            color: var(--green-nominal);
-        }
-        
-        .log-entry.error .log-message {
-            color: var(--red-alarm);
-        }
-        
-        /* ============================================
-           RESPONSIVE
-           ============================================ */
-        @media (max-width: 900px) {
-            .channel-grid.grid-8,
-            .channel-grid.grid-16 {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .reading-value {
-                font-size: 28px;
-            }
-        }
-        
-        @media (max-width: 600px) {
-            .channel-grid.grid-4,
-            .channel-grid.grid-8,
-            .channel-grid.grid-16 {
-                grid-template-columns: 1fr;
-            }
-            
-            .toolbar {
-                flex-direction: column;
-                gap: 10px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- HEADER -->
-    <header class="header">
-        <div class="header-left">
-            <a href="/dashboard/" class="logo">KAIROS<span>LOOP</span></a>
-            <div class="nav-links">
-                <a href="/dashboard/" class="nav-link active">Dashboard</a>
-                <a href="/dashboard/measurements/" class="nav-link">Measurements</a>
-                <a href="/dashboard/setup/" class="nav-link">Setup</a>
-            </div>
-            <div class="system-status">
-                <div class="status-indicator" id="statusIndicator"></div>
-                <span class="status-text" id="statusText">Connecting</span>
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="header-stat">RATE: <strong id="pollRate">--</strong> Hz</div>
-            <div class="header-stat">READINGS: <strong id="totalReadings">0</strong></div>
-            <div class="header-stat" id="clock">--:--:--</div>
-        </div>
-    </header>
-    
-    <!-- TOOLBAR -->
-    <div class="toolbar">
-        <div class="view-controls">
-            <div class="toolbar-group" style="border-left: none; padding-left: 0;">
-                <span class="toolbar-label">Gauge</span>
-                <select class="toolbar-select" id="gaugeSelect">
-                    {% for gauge in gauges %}
-                    <option value="{{ gauge.id }}" {% if gauge == selected_gauge %}selected{% endif %}>{{ gauge.name }}</option>
-                    {% empty %}
-                    <option value="">No gauges configured</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button class="view-btn" data-view="2">2 CH</button>
-            <button class="view-btn active" data-view="4">4 CH</button>
-            <button class="view-btn" data-view="8">8 CH</button>
-            <button class="view-btn" data-view="16">16 CH</button>
-        </div>
-        <div class="toolbar-actions">
-            <div class="toolbar-group">
-                <span class="toolbar-label">Filter</span>
-                <select class="toolbar-select" id="filterSelect">
-                    <option value="0" {% if filter_level == 0 %}selected{% endif %}>Off (Raw)</option>
-                    <option value="1" {% if filter_level == 1 %}selected{% endif %}>2 samples</option>
-                    <option value="2" {% if filter_level == 2 %}selected{% endif %}>4 samples</option>
-                    <option value="3" {% if filter_level == 3 %}selected{% endif %}>8 samples</option>
-                    <option value="4" {% if filter_level == 4 %}selected{% endif %}>16 samples</option>
-                    <option value="5" {% if filter_level == 5 %}selected{% endif %}>32 samples</option>
-                    <option value="6" {% if filter_level == 6 %}selected{% endif %}>64 samples</option>
-                </select>
-            </div>
-            <div class="toolbar-group">
-                <button class="action-btn master" id="btnMaster">⊙ MASTER ALL</button>
-                <button class="action-btn" id="btnClearMaster">CLEAR</button>
-            </div>
-            <div class="toolbar-group">
-                <button class="action-btn" id="btnReset">RESET STATS</button>
-                <button class="action-btn" id="btnLog">LOG</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- CHANNEL GRID -->
-    <div class="channel-grid grid-4" id="channelGrid">
-        <!-- Channels will be generated by JS -->
-    </div>
-    
-    <!-- EMPTY STATE -->
-    {% if not selected_gauge %}
-    <div id="emptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-dim);">
-        <p style="font-size: 16px; margin-bottom: 12px;">No gauges configured</p>
-        <a href="{% url 'setup' %}" style="color: var(--blue-info); text-decoration: none;">Go to Setup →</a>
-    </div>
-    {% elif not channels_json or channels_json == '[]' %}
-    <div id="emptyState" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--text-dim);">
-        <p style="font-size: 16px; margin-bottom: 12px;">No channels configured for {{ selected_gauge.name }}</p>
-        <a href="{% url 'setup_gauge_edit' selected_gauge.id %}" style="color: var(--blue-info); text-decoration: none;">Add Channels →</a>
-    </div>
-    {% endif %}
-    
-    <!-- LOG PANEL -->
-    <div class="log-panel" id="logPanel">
-        <div class="log-content" id="logContent"></div>
-    </div>
-    
-    <!-- FOOTER -->
-    <footer class="footer">
-        <div class="footer-left">
-            <div class="footer-item">MACHINE: <strong>{{ machine.name }}</strong></div>
-            <div class="footer-item">GAUGE: <strong id="gaugeInfo">{% if selected_gauge %}{{ selected_gauge.name }}{% else %}--{% endif %}</strong></div>
-            <div class="footer-item">CHANNELS: <strong id="channelCount">--</strong></div>
-            <div class="footer-item">LAST: <strong id="lastReading">--</strong></div>
-        </div>
-        <div class="footer-right">
-            <span>KAIROSLOOP v0.1</span>
-        </div>
-    </footer>
+{% extends 'dashboard/base.html' %}
 
-    <!-- Server data passed to JavaScript -->
-    <script id="server-data" type="application/json">
-    {
-        "channels": {{ channels_json|safe }},
-        "selectedGaugeId": {% if selected_gauge %}{{ selected_gauge.id }}{% else %}null{% endif %},
-        "filterLevel": {% if filter_level %}{{ filter_level }}{% else %}5{% endif %}
+{% block title %}Dashboard - KairosLoop{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block nav_right %}
+<div class="nav-status">
+    <div class="nav-status-indicator" id="wsStatus"></div>
+    <span class="nav-status-text" id="wsStatusText">Connecting...</span>
+</div>
+<div class="nav-stat">
+    <strong>{{ machine.name }}</strong>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* ============================================
+       LAYOUT
+       ============================================ */
+    .dashboard-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        max-width: 1600px;
+        margin: 0 auto;
     }
-    </script>
+    
+    /* ============================================
+       PANELS
+       ============================================ */
+    .panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-dark);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .panel-header:hover {
+        background: var(--bg-hover);
+    }
+    
+    .panel-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .panel-title-icon {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+    }
+    
+    .panel-toggle {
+        font-size: 12px;
+        color: var(--text-dim);
+        transition: transform 0.2s;
+    }
+    
+    .panel.collapsed .panel-toggle {
+        transform: rotate(-90deg);
+    }
+    
+    .panel.collapsed .panel-content {
+        display: none;
+    }
+    
+    .panel-content {
+        padding: 16px;
+    }
+    
+    .panel-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    /* ============================================
+       STATS BAR
+       ============================================ */
+    .stats-bar {
+        display: flex;
+        gap: 24px;
+        padding: 12px 16px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    .stat-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .stat-value.pass { color: var(--green); }
+    .stat-value.warn { color: var(--yellow); }
+    .stat-value.fail { color: var(--red); }
+    
+    /* ============================================
+       LIVE SECTION
+       ============================================ */
+    .live-grid {
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 16px;
+    }
+    
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+    
+    .feature-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .feature-card.warn {
+        border-color: var(--yellow);
+    }
+    
+    .feature-card.alarm {
+        border-color: var(--red);
+    }
+    
+    .feature-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .feature-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .feature-type {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    .feature-status {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        flex-shrink: 0;
+    }
+    
+    .feature-status.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .feature-status.warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    .feature-status.alarm { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1s infinite; }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .feature-value-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }
+    
+    .feature-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 32px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+    
+    .feature-value.ok { color: var(--green); }
+    .feature-value.warn { color: var(--yellow); }
+    .feature-value.alarm { color: var(--red); }
+    
+    .feature-unit {
+        font-size: 14px;
+        color: var(--text-dim);
+    }
+    
+    .feature-deviation {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    /* Sparkline */
+    .feature-sparkline {
+        height: 32px;
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        padding: 4px 0;
+    }
+    
+    .sparkline-bar {
+        flex: 1;
+        min-width: 4px;
+        max-width: 12px;
+        background: var(--green);
+        border-radius: 1px;
+        transition: height 0.2s;
+    }
+    
+    .sparkline-bar.warn { background: var(--yellow); }
+    .sparkline-bar.alarm { background: var(--red); }
+    
+    /* Tolerance bar */
+    .feature-tolerance {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .tolerance-bar {
+        flex: 1;
+        height: 6px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .tolerance-fill {
+        position: absolute;
+        height: 100%;
+        background: var(--green);
+        border-radius: 3px;
+        transition: all 0.3s;
+    }
+    
+    .tolerance-fill.warn { background: var(--yellow); }
+    .tolerance-fill.alarm { background: var(--red); }
+    
+    .tolerance-marker {
+        position: absolute;
+        width: 2px;
+        height: 100%;
+        background: var(--text-primary);
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .tolerance-limits {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-dim);
+        white-space: nowrap;
+    }
+    
+    /* Channels sidebar */
+    .channels-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .channels-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+    
+    .channel-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+    }
+    
+    .channel-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .channel-index {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-dim);
+    }
+    
+    .channel-name {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .channel-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--blue);
+    }
+    
+    .actions-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .btn {
+        flex: 1;
+        padding: 10px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.15s;
+    }
+    
+    .btn:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+    
+    .btn.primary {
+        border-color: var(--green);
+        color: var(--green);
+    }
+    
+    .btn.primary:hover {
+        background: var(--green);
+        color: #000;
+    }
+    
+    /* ============================================
+       COMPENSATION SECTION
+       ============================================ */
+    .compensation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .tool-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+    }
+    
+    .tool-card.warning {
+        border-color: var(--yellow);
+    }
+    
+    .tool-card.critical {
+        border-color: var(--red);
+    }
+    
+    .tool-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    
+    .tool-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .tool-id {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        background: var(--bg-recessed);
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+    
+    .tool-wear-visual {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .wear-gauge {
+        width: 60px;
+        height: 60px;
+        position: relative;
+    }
+    
+    .wear-gauge svg {
+        transform: rotate(-90deg);
+    }
+    
+    .wear-gauge-bg {
+        fill: none;
+        stroke: var(--bg-recessed);
+        stroke-width: 6;
+    }
+    
+    .wear-gauge-fill {
+        fill: none;
+        stroke: var(--green);
+        stroke-width: 6;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s;
+    }
+    
+    .wear-gauge-fill.warning { stroke: var(--yellow); }
+    .wear-gauge-fill.critical { stroke: var(--red); }
+    
+    .wear-gauge-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .tool-details {
+        flex: 1;
+    }
+    
+    .tool-stat {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        margin-bottom: 4px;
+    }
+    
+    .tool-stat-label {
+        color: var(--text-dim);
+    }
+    
+    .tool-stat-value {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--text-secondary);
+    }
+    
+    .tool-last-adj {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-dark);
+    }
+    
+    .tool-last-adj strong {
+        color: var(--text-secondary);
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Events feed */
+    .events-section {
+        border-top: 1px solid var(--border-dark);
+        padding-top: 16px;
+    }
+    
+    .events-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+    
+    .events-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .event-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+        background: var(--bg-panel);
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    
+    .event-time {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-dim);
+        min-width: 60px;
+    }
+    
+    .event-tool {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-secondary);
+        background: var(--bg-recessed);
+        padding: 2px 6px;
+        border-radius: 3px;
+    }
+    
+    .event-feature {
+        flex: 1;
+        color: var(--text-secondary);
+    }
+    
+    .event-offset {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+    }
+    
+    .event-offset.positive { color: var(--red); }
+    .event-offset.negative { color: var(--green); }
+    
+    .event-status {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        text-transform: uppercase;
+    }
+    
+    .event-status.applied { background: rgba(0, 255, 136, 0.2); color: var(--green); }
+    .event-status.clamped { background: rgba(255, 204, 0, 0.2); color: var(--yellow); }
+    .event-status.error { background: rgba(255, 68, 68, 0.2); color: var(--red); }
+    
+    /* ============================================
+       HISTORY SECTION
+       ============================================ */
+    .history-grid {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 16px;
+    }
+    
+    .trend-chart-container {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+        height: 200px;
+    }
+    
+    .history-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .history-stat-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+        text-align: center;
+    }
+    
+    .history-stat-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .history-stat-value.pass { color: var(--green); }
+    .history-stat-value.warn { color: var(--yellow); }
+    .history-stat-value.fail { color: var(--red); }
+    
+    .history-stat-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-top: 4px;
+    }
+    
+    .history-table {
+        margin-top: 16px;
+    }
+    
+    .history-table-header {
+        display: grid;
+        grid-template-columns: 80px 1fr 100px 80px;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px 4px 0 0;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    .history-table-body {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border-dark);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+    }
+    
+    .history-table-row {
+        display: grid;
+        grid-template-columns: 70px 1fr 90px 90px 80px;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border-dark);
+        font-size: 12px;
+    }
+    
+    .history-table-row:last-child {
+        border-bottom: none;
+    }
+    
+    .history-table-row:hover {
+        background: var(--bg-hover);
+    }
+    
+    /* ============================================
+       EMPTY STATES
+       ============================================ */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        color: var(--text-dim);
+        text-align: center;
+    }
+    
+    .empty-state a {
+        color: var(--blue);
+        text-decoration: none;
+        margin-top: 8px;
+    }
+</style>
+{% endblock %}
 
-    <script>
-        // ============================================
-        // CONFIGURATION (from database)
-        // ============================================
-        const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
-        const CHANNELS_CONFIG = SERVER_DATA.channels;
-        const SELECTED_GAUGE_ID = SERVER_DATA.selectedGaugeId;
-        
-        const CONFIG = {
-            wsUrl: `ws://${window.location.host}/ws/gauge/`,
-            reconnectDelay: 2000,
-            defaultTolerance: { upper: 0.010, lower: -0.010 }
-        };
-        
-        // ============================================
-        // STATE
-        // ============================================
-        const state = {
-            socket: null,
-            connected: false,
-            currentView: 4,
-            totalReadings: 0,
-            channels: {},
-            channelsList: [],  // Ordered list of channel indices for current gauge
-            logOpen: false,
-            filterLevel: SERVER_DATA.filterLevel,
-            selectedGaugeId: SELECTED_GAUGE_ID
-        };
-        
-        // Initialize channel state from database config
-        function initChannelsFromConfig() {
-            state.channels = {};
-            state.channelsList = [];
-            
-            // Filter channels for selected gauge
-            const gaugeChannels = CHANNELS_CONFIG.filter(ch => 
-                state.selectedGaugeId === null || ch.gauge_id === state.selectedGaugeId
-            );
-            
-            gaugeChannels.forEach(ch => {
-                state.channels[ch.channel_index] = {
-                    id: ch.id,
-                    gaugeId: ch.gauge_id,
-                    gaugeName: ch.gauge_name,
-                    enabled: true,
-                    name: ch.name,
-                    displayName: ch.display_name,
-                    nominal: 25.400,  // TODO: get from Feature config
-                    tolerance: { ...CONFIG.defaultTolerance },
-                    value: null,
-                    rawValue: null,
-                    masterOffset: 0.0,
-                    min: null,
-                    max: null,
-                    count: 0,
-                    lastUpdate: null
-                };
-                state.channelsList.push(ch.channel_index);
-            });
-        }
-        
-        // ============================================
-        // DOM REFERENCES
-        // ============================================
-        const dom = {
-            statusIndicator: document.getElementById('statusIndicator'),
-            statusText: document.getElementById('statusText'),
-            pollRate: document.getElementById('pollRate'),
-            totalReadings: document.getElementById('totalReadings'),
-            clock: document.getElementById('clock'),
-            channelGrid: document.getElementById('channelGrid'),
-            logPanel: document.getElementById('logPanel'),
-            logContent: document.getElementById('logContent'),
-            channelCount: document.getElementById('channelCount'),
-            lastReading: document.getElementById('lastReading'),
-            moduleInfo: document.getElementById('moduleInfo')
-        };
-        
-        // ============================================
-        // CHANNEL RENDERING
-        // ============================================
-        function createChannelCard(index) {
-            const ch = state.channels[index];
-            const displayNum = index + 1;  // 0-indexed internally, 1-indexed display
-            const card = document.createElement('div');
-            card.className = 'channel-card' + (ch.enabled ? '' : ' disabled');
-            card.id = `channel-${index}`;
-            card.innerHTML = `
-                <div class="channel-header">
-                    <div>
-                        <div class="channel-id">CH ${displayNum}</div>
-                        <div class="channel-name">${ch.name}</div>
+{% block content %}
+<div class="dashboard-container">
+    
+    <!-- STATS BAR -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Today</span>
+            <span class="stat-value" id="statTotal">{{ stats.total_today }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Pass</span>
+            <span class="stat-value pass" id="statPass">{{ stats.pass_today }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Warn</span>
+            <span class="stat-value warn" id="statWarn">{{ stats.warn_today }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Fail</span>
+            <span class="stat-value fail" id="statFail">{{ stats.fail_today }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Pass Rate</span>
+            <span class="stat-value" id="statRate">{{ stats.pass_rate }}%</span>
+        </div>
+    </div>
+    
+    <!-- LIVE PANEL -->
+    <div class="panel" id="panelLive">
+        <div class="panel-header" onclick="togglePanel('panelLive')">
+            <div class="panel-title">
+                <div class="panel-title-icon"></div>
+                Live
+            </div>
+            <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="live-grid">
+                <!-- Features -->
+                <div class="features-grid" id="featuresGrid">
+                    {% for feature in features %}
+                    <div class="feature-card" id="feature-card-{{ feature.id }}" data-feature-id="{{ feature.id }}">
+                        <div class="feature-header">
+                            <div>
+                                <div class="feature-name">{{ feature.name }}</div>
+                                <div class="feature-type">{{ feature.get_feature_type_display }}</div>
+                            </div>
+                            <div class="feature-status" id="status-{{ feature.id }}"></div>
+                        </div>
+                        <div class="feature-value-row">
+                            <span class="feature-value" id="value-{{ feature.id }}">—</span>
+                            <span class="feature-unit">{{ feature.unit }}</span>
+                        </div>
+                        <div class="feature-deviation" id="deviation-{{ feature.id }}">Deviation: —</div>
+                        <div class="feature-sparkline" id="sparkline-{{ feature.id }}">
+                            <!-- Populated by JS -->
+                        </div>
+                        {% if feature.tolerance_upper %}
+                        <div class="feature-tolerance">
+                            <div class="tolerance-bar">
+                                <div class="tolerance-fill" id="tolerance-fill-{{ feature.id }}"></div>
+                                <div class="tolerance-marker"></div>
+                            </div>
+                            <span class="tolerance-limits">±{{ feature.tolerance_upper }}</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    <div class="channel-header-right">
-                        <button class="channel-master-btn" data-channel="${index}" title="Master this channel">⊙</button>
-                        <div class="channel-status" id="status-${index}">--</div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <p>No features configured</p>
+                        <a href="{% url 'measurement:feature_add' %}">+ Add feature</a>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Channels + Actions -->
+                <div class="channels-panel">
+                    <div class="channels-title">Live Channels</div>
+                    {% for gauge in gauges %}
+                        {% for channel in gauge.channels.all %}
+                        <div class="channel-row" data-channel-index="{{ channel.channel_index }}">
+                            <div class="channel-label">
+                                <span class="channel-index">CH{{ channel.display_index }}</span>
+                                <span class="channel-name">{{ channel.name }}</span>
+                            </div>
+                            <span class="channel-value" id="channel-{{ channel.channel_index }}">—</span>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                    
+                    <div class="actions-row">
+                        <button class="btn primary" id="btnCapture">Capture</button>
+                        <button class="btn" id="btnMaster">Master</button>
                     </div>
                 </div>
-                <div class="reading-display">
-                    <div class="reading-value" id="value-${index}">
-                        --<span class="unit">mm</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- COMPENSATION PANEL -->
+    <div class="panel" id="panelCompensation">
+        <div class="panel-header" onclick="togglePanel('panelCompensation')">
+            <div class="panel-title">
+                <div class="panel-title-icon" style="background: var(--blue);"></div>
+                Compensation
+            </div>
+            <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-content">
+            <!-- Tool wear gauges -->
+            <div class="compensation-grid" id="compensationGrid">
+                {% for rule in compensation_rules %}
+                <div class="tool-card {{ rule.wear_status }}" id="tool-card-{{ rule.id }}" data-rule-id="{{ rule.id }}">
+                    <div class="tool-header">
+                        <span class="tool-name">{{ rule.feature.name }}</span>
+                        <span class="tool-id">T{{ rule.tool_number }} {{ rule.offset_register }}</span>
                     </div>
-                    <div class="master-offset" id="offset-${index}"></div>
-                    <div class="deviation-row">
-                        <span class="deviation-value" id="dev-${index}">Δ --</span>
-                        <div class="deviation-bar-container">
-                            <div class="deviation-bar-limit" id="limit-lower-${index}" style="left: 25%;"></div>
-                            <div class="deviation-bar-center"></div>
-                            <div class="deviation-bar-limit" id="limit-upper-${index}" style="left: 75%;"></div>
-                            <div class="deviation-bar-fill" id="bar-${index}" style="left: 50%; width: 0;"></div>
+                    <div class="tool-wear-visual">
+                        <div class="wear-gauge">
+                            <svg viewBox="0 0 36 36" width="60" height="60">
+                                <circle class="wear-gauge-bg" cx="18" cy="18" r="15"/>
+                                <circle class="wear-gauge-fill {{ rule.wear_status }}" 
+                                        cx="18" cy="18" r="15"
+                                        stroke-dasharray="94.2"
+                                        stroke-dashoffset="{{ 94.2|add:rule.wear_percentage|divisibleby:100|floatformat:1 }}"
+                                        id="wear-gauge-{{ rule.id }}"/>
+                            </svg>
+                            <span class="wear-gauge-text" id="wear-pct-{{ rule.id }}">{{ rule.wear_percentage|floatformat:0 }}%</span>
+                        </div>
+                        <div class="tool-details">
+                            <div class="tool-stat">
+                                <span class="tool-stat-label">Accumulated</span>
+                                <span class="tool-stat-value" id="accum-{{ rule.id }}">{{ rule.accumulated_offset|floatformat:4 }}</span>
+                            </div>
+                            <div class="tool-stat">
+                                <span class="tool-stat-label">Limit</span>
+                                <span class="tool-stat-value">{{ rule.wear_limit }}</span>
+                            </div>
+                            <div class="tool-stat">
+                                <span class="tool-stat-label">Max/Cycle</span>
+                                <span class="tool-stat-value">{{ rule.max_per_cycle }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="stats-row">
-                    <div class="stat-item">
-                        <span class="stat-label">Min</span>
-                        <span class="stat-value" id="min-${index}">--</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Max</span>
-                        <span class="stat-value" id="max-${index}">--</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Δ Range</span>
-                        <span class="stat-value" id="range-${index}">--</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Count</span>
-                        <span class="stat-value" id="count-${index}">0</span>
+                    <div class="tool-last-adj">
+                        Last: <strong id="last-adj-{{ rule.id }}">{{ rule.last_adjustment|floatformat:4 }}</strong>
+                        {% if rule.last_adjustment_at %}
+                        <span style="float: right;">{{ rule.last_adjustment_at|timesince }} ago</span>
+                        {% endif %}
                     </div>
                 </div>
-            `;
-            return card;
-        }
-        
-        function renderChannelGrid() {
-            dom.channelGrid.innerHTML = '';
-            const visibleCount = Math.min(state.currentView, state.channelsList.length);
+                {% empty %}
+                <div class="empty-state">
+                    <p>No compensation rules</p>
+                    <a href="{% url 'compensation:rule_add' %}">+ Add rule</a>
+                </div>
+                {% endfor %}
+            </div>
             
-            // Render channels from the channelsList (database order)
-            for (let i = 0; i < visibleCount; i++) {
-                const channelIndex = state.channelsList[i];
-                if (state.channels[channelIndex]) {
-                    dom.channelGrid.appendChild(createChannelCard(channelIndex));
+            <!-- Recent events -->
+            <div class="events-section">
+                <div class="events-title">Recent Compensation Events</div>
+                <div class="events-feed" id="eventsFeed">
+                    {% for event in recent_events %}
+                    <div class="event-row">
+                        <span class="event-time">{{ event.timestamp|time:"H:i:s" }}</span>
+                        <span class="event-tool">T{{ event.rule.tool_number }}</span>
+                        <span class="event-feature">{{ event.rule.feature.name }}</span>
+                        <span class="event-offset {% if event.offset_applied >= 0 %}positive{% else %}negative{% endif %}">
+                            {{ event.offset_applied|floatformat:4 }}
+                        </span>
+                        <span class="event-status {{ event.status|lower }}">{{ event.status }}</span>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <p>No compensation events yet</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HISTORY PANEL -->
+    <div class="panel" id="panelHistory">
+        <div class="panel-header" onclick="togglePanel('panelHistory')">
+            <div class="panel-title">
+                <div class="panel-title-icon" style="background: var(--purple, #a855f7);"></div>
+                History
+            </div>
+            <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="history-grid">
+                <div class="trend-chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+                <div class="history-stats">
+                    <div class="history-stat-card">
+                        <div class="history-stat-value pass" id="historyPassRate">{{ stats.pass_rate }}%</div>
+                        <div class="history-stat-label">Pass Rate Today</div>
+                    </div>
+                    <div class="history-stat-card">
+                        <div class="history-stat-value">{{ stats.total_all }}</div>
+                        <div class="history-stat-label">Total Measurements</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="history-table">
+                <div class="history-table-header" style="grid-template-columns: 70px 1fr 90px 90px 80px;">
+                    <span>Time</span>
+                    <span>Feature</span>
+                    <span>Nominal</span>
+                    <span>Deviation</span>
+                    <span>Status</span>
+                </div>
+                <div class="history-table-body" id="historyTableBody">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Server Data -->
+<script id="server-data" type="application/json">
+{
+    "channels": {{ channels_json|safe }},
+    "features": {{ features_json|safe }},
+    "compensation": {{ compensation_json|safe }},
+    "events": {{ events_json|safe }},
+    "stats": {{ stats_json|safe }}
+}
+</script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
+    const FEATURES = SERVER_DATA.features;
+    const COMPENSATION = SERVER_DATA.compensation;
+    
+    // Panel collapse
+    function togglePanel(panelId) {
+        document.getElementById(panelId).classList.toggle('collapsed');
+    }
+    
+    // Initialize sparklines from server data
+    function initSparklines() {
+        FEATURES.forEach(feature => {
+            const container = document.getElementById(`sparkline-${feature.id}`);
+            if (!container || !feature.sparkline.length) return;
+            
+            container.innerHTML = '';
+            const maxDev = Math.max(...feature.sparkline.map(d => Math.abs(d.deviation)), 0.001);
+            
+            feature.sparkline.forEach(point => {
+                const bar = document.createElement('div');
+                bar.className = `sparkline-bar ${point.status.toLowerCase()}`;
+                const height = Math.min(100, (Math.abs(point.deviation) / maxDev) * 100);
+                bar.style.height = `${Math.max(10, height)}%`;
+                container.appendChild(bar);
+            });
+            
+            // Set initial values
+            if (feature.last_value !== null) {
+                const valueEl = document.getElementById(`value-${feature.id}`);
+                const statusEl = document.getElementById(`status-${feature.id}`);
+                const deviationEl = document.getElementById(`deviation-${feature.id}`);
+                
+                if (valueEl) {
+                    valueEl.textContent = feature.last_value.toFixed(feature.resolution);
+                    valueEl.className = `feature-value ${feature.last_status.toLowerCase()}`;
+                }
+                if (statusEl) {
+                    statusEl.className = `feature-status ${feature.last_status.toLowerCase()}`;
+                }
+                if (deviationEl && feature.last_deviation !== null) {
+                    const d = feature.last_deviation;
+                    deviationEl.textContent = `Deviation: ${d >= 0 ? '+' : ''}${d.toFixed(feature.resolution)}`;
                 }
             }
+        });
+    }
+    
+    // WebSocket
+    let ws = null;
+    let reconnectAttempts = 0;
+    
+    function connectWebSocket() {
+        const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${wsScheme}://${window.location.host}/ws/gauge/`);
+        
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+            document.getElementById('wsStatus').classList.add('connected');
+            document.getElementById('wsStatusText').textContent = 'Connected';
+        };
+        
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            handleMessage(data);
+        };
+        
+        ws.onclose = () => {
+            document.getElementById('wsStatus').classList.remove('connected');
+            document.getElementById('wsStatusText').textContent = 'Disconnected';
+            if (reconnectAttempts < 5) {
+                reconnectAttempts++;
+                setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+            }
+        };
+    }
+    
+    // Store channel values
+    window.channelValues = {};
+    
+    function handleMessage(data) {
+        switch (data.type) {
+            case 'gauge_reading':
+                window.channelValues[data.channel] = data.value;
+                updateChannel(data.channel, data.value);
+                updateFeatures(window.channelValues);
+                break;
+            case 'capture_result':
+                handleCaptureResult(data);
+                break;
+            case 'command_response':
+                console.log('Command:', data.command, data.success, data.message);
+                break;
+        }
+    }
+    
+    function updateChannel(index, value) {
+        const el = document.getElementById(`channel-${index}`);
+        if (el) el.textContent = value.toFixed(4);
+    }
+    
+    function updateFeatures(channelValues) {
+        FEATURES.forEach(feature => {
+            const inputs = {};
+            let hasAll = true;
             
-            // Update view button active states
-            const actualCount = state.channelsList.length;
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                const viewCount = parseInt(btn.dataset.view);
-                if (viewCount > actualCount) {
-                    btn.style.opacity = '0.5';
+            feature.inputs.forEach(inp => {
+                const val = channelValues[inp.channel_index];
+                if (val !== undefined) {
+                    inputs[inp.label] = val;
                 } else {
-                    btn.style.opacity = '1';
+                    hasAll = false;
                 }
             });
             
-            dom.channelCount.textContent = visibleCount;
-        }
-        
-        function updateChannelDisplay(index, data) {
-            const ch = state.channels[index];
-            if (!ch || !ch.enabled) return;
+            if (!hasAll) return;
             
-            // Store raw value and apply master offset
-            const rawValue = data.value;
-            const value = rawValue - ch.masterOffset;
-            const deviation = value - ch.nominal;
-            const inTolerance = deviation >= ch.tolerance.lower && deviation <= ch.tolerance.upper;
-            const isWarn = Math.abs(deviation) > Math.abs(ch.tolerance.upper) * 0.8;
+            // Evaluate formula
+            let value;
+            try {
+                let expr = feature.formula.toUpperCase();
+                for (const [label, val] of Object.entries(inputs)) {
+                    expr = expr.replace(new RegExp(label, 'g'), val);
+                }
+                value = eval(expr);
+            } catch (e) { return; }
             
-            // Update state
-            ch.rawValue = rawValue;
-            ch.value = value;
-            ch.count++;
-            ch.lastUpdate = new Date();
-            if (ch.min === null || value < ch.min) ch.min = value;
-            if (ch.max === null || value > ch.max) ch.max = value;
+            // Update display
+            const valueEl = document.getElementById(`value-${feature.id}`);
+            const statusEl = document.getElementById(`status-${feature.id}`);
+            const deviationEl = document.getElementById(`deviation-${feature.id}`);
+            const cardEl = document.getElementById(`feature-card-${feature.id}`);
             
-            state.totalReadings++;
+            if (valueEl) valueEl.textContent = value.toFixed(feature.resolution);
             
-            // Update DOM
-            const card = document.getElementById(`channel-${index}`);
-            if (!card) return;
+            const nominal = feature.nominal || 0;
+            const deviation = value - nominal;
+            const upper = feature.tolerance_upper;
+            const lower = feature.tolerance_lower || -upper;
             
-            // Value
-            const valueEl = document.getElementById(`value-${index}`);
-            valueEl.innerHTML = `${value.toFixed(4)}<span class="unit">mm</span>`;
-            valueEl.className = 'reading-value' + (!inTolerance ? ' alarm' : isWarn ? ' warn' : '');
-            
-            // Master offset indicator
-            const offsetEl = document.getElementById(`offset-${index}`);
-            if (ch.masterOffset !== 0) {
-                offsetEl.textContent = `MASTER: ${ch.masterOffset >= 0 ? '+' : ''}${ch.masterOffset.toFixed(4)}`;
-                offsetEl.className = 'master-offset active';
-            } else {
-                offsetEl.textContent = '';
-                offsetEl.className = 'master-offset';
+            if (deviationEl) {
+                deviationEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(feature.resolution)}`;
             }
             
-            // Deviation
-            const devEl = document.getElementById(`dev-${index}`);
-            devEl.textContent = `Δ ${deviation >= 0 ? '+' : ''}${deviation.toFixed(4)}`;
-            devEl.className = 'deviation-value ' + (deviation > 0 ? 'positive' : deviation < 0 ? 'negative' : 'nominal');
-            
-            // Status badge
-            const statusEl = document.getElementById(`status-${index}`);
-            if (!inTolerance) {
-                statusEl.textContent = 'ALARM';
-                statusEl.className = 'channel-status alarm';
-                card.className = 'channel-card alarm';
-            } else if (isWarn) {
-                statusEl.textContent = 'WARN';
-                statusEl.className = 'channel-status warn';
-                card.className = 'channel-card warn';
-            } else {
-                statusEl.textContent = 'OK';
-                statusEl.className = 'channel-status ok';
-                card.className = 'channel-card';
+            let status = 'ok';
+            if (upper && (deviation > upper || deviation < lower)) {
+                status = 'alarm';
+            } else if (upper && (deviation > upper * 0.8 || deviation < lower * 0.8)) {
+                status = 'warn';
             }
             
-            // Deviation bar
-            const bar = document.getElementById(`bar-${index}`);
-            const maxDev = Math.max(Math.abs(ch.tolerance.lower), Math.abs(ch.tolerance.upper)) * 2;
-            const percent = (deviation / maxDev) * 50;
-            const clampedPercent = Math.max(-50, Math.min(50, percent));
+            if (statusEl) statusEl.className = `feature-status ${status}`;
+            if (valueEl) valueEl.className = `feature-value ${status}`;
+            if (cardEl) cardEl.className = `feature-card ${status === 'ok' ? '' : status}`;
             
-            if (clampedPercent >= 0) {
-                bar.style.left = '50%';
-                bar.style.width = clampedPercent + '%';
-            } else {
-                bar.style.left = (50 + clampedPercent) + '%';
-                bar.style.width = Math.abs(clampedPercent) + '%';
+            // Update tolerance bar
+            const fillEl = document.getElementById(`tolerance-fill-${feature.id}`);
+            if (fillEl && upper) {
+                const range = upper - lower;
+                const pos = ((deviation - lower) / range) * 100;
+                fillEl.style.left = `${Math.max(0, Math.min(90, pos - 5))}%`;
+                fillEl.style.width = '10%';
+                fillEl.className = `tolerance-fill ${status}`;
             }
-            bar.className = 'deviation-bar-fill' + (!inTolerance ? ' alarm' : isWarn ? ' warn' : '');
-            
-            // Stats
-            document.getElementById(`min-${index}`).textContent = ch.min.toFixed(4);
-            document.getElementById(`max-${index}`).textContent = ch.max.toFixed(4);
-            document.getElementById(`range-${index}`).textContent = (ch.max - ch.min).toFixed(4);
-            document.getElementById(`count-${index}`).textContent = ch.count;
-            
-            // Footer updates
-            dom.totalReadings.textContent = state.totalReadings;
-            dom.lastReading.textContent = new Date().toLocaleTimeString();
+        });
+    }
+    
+    function handleCaptureResult(data) {
+        // Update stats
+        if (data.all_pass) {
+            incrementStat('statPass');
+        } else if (data.any_alarm) {
+            incrementStat('statFail');
+        } else {
+            incrementStat('statWarn');
         }
+        incrementStat('statTotal');
+        updatePassRate();
         
-        // ============================================
-        // WEBSOCKET
-        // ============================================
-        function connect() {
-            state.socket = new WebSocket(CONFIG.wsUrl);
-            
-            state.socket.onopen = () => {
-                state.connected = true;
-                setStatus('connected', 'ONLINE');
-                addLog('system', 'WebSocket connected');
-            };
-            
-            state.socket.onclose = () => {
-                state.connected = false;
-                setStatus('error', 'OFFLINE');
-                addLog('system', 'Connection lost, reconnecting...');
-                setTimeout(connect, CONFIG.reconnectDelay);
-            };
-            
-            state.socket.onerror = () => {
-                setStatus('error', 'ERROR');
-            };
-            
-            state.socket.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                handleMessage(data);
-            };
+        // Add to history table
+        data.features.forEach(f => {
+            addHistoryRow(f);
+            addSparklinePoint(f.id, f.deviation, f.status);
+        });
+        
+        // Flash capture button
+        const btn = document.getElementById('btnCapture');
+        btn.style.background = data.all_pass ? 'var(--green)' : 'var(--red)';
+        btn.style.color = '#000';
+        setTimeout(() => {
+            btn.style.background = '';
+            btn.style.color = '';
+        }, 500);
+    }
+    
+    function incrementStat(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = parseInt(el.textContent) + 1;
+    }
+    
+    function updatePassRate() {
+        const total = parseInt(document.getElementById('statTotal').textContent);
+        const pass = parseInt(document.getElementById('statPass').textContent);
+        const rate = total > 0 ? (pass / total * 100).toFixed(1) : 0;
+        document.getElementById('statRate').textContent = `${rate}%`;
+        document.getElementById('historyPassRate').textContent = `${rate}%`;
+    }
+    
+    function addHistoryRow(feature) {
+        const tbody = document.getElementById('historyTableBody');
+        const row = document.createElement('div');
+        row.className = 'history-table-row';
+        row.style.gridTemplateColumns = '70px 1fr 90px 90px 80px';
+        
+        const deviation = feature.deviation || 0;
+        const deviationStr = (deviation >= 0 ? '+' : '') + deviation.toFixed(4);
+        const statusColor = feature.status === 'OK' ? 'green' : feature.status === 'WARN' ? 'yellow' : 'red';
+        
+        row.innerHTML = `
+            <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
+                ${new Date().toLocaleTimeString('en-US', {hour12: false})}
+            </span>
+            <span style="color: var(--text-secondary);">${feature.name}</span>
+            <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
+                ${feature.nominal !== undefined ? feature.nominal.toFixed(3) : '—'}
+            </span>
+            <span style="font-family: 'JetBrains Mono'; color: var(--${statusColor});">
+                ${deviationStr}
+            </span>
+            <span style="color: var(--${statusColor}); font-weight: 600;">
+                ${feature.status}
+            </span>
+        `;
+        tbody.insertBefore(row, tbody.firstChild);
+        while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+    }
+    
+    function addSparklinePoint(featureId, deviation, status) {
+        const container = document.getElementById(`sparkline-${featureId}`);
+        if (!container) return;
+        
+        const bar = document.createElement('div');
+        bar.className = `sparkline-bar ${status.toLowerCase()}`;
+        bar.style.height = `${Math.min(100, Math.abs(deviation) * 1000)}%`;
+        container.appendChild(bar);
+        
+        while (container.children.length > 20) {
+            container.removeChild(container.firstChild);
         }
-        
-        function handleMessage(data) {
-            switch (data.type) {
-                case 'connection_established':
-                    addLog('system', `Subscribed to ${data.channel}`);
-                    break;
-                    
-                case 'gauge_reading':
-                    updateChannelDisplay(data.channel, data);
-                    break;
-                    
-                case 'gauge_offset':
-                    addLog('offset', `T${data.tool_number}: ${data.offset_value.toFixed(6)} ${data.success ? '✓' : '✗'}`);
-                    break;
-                    
-                case 'gauge_status':
-                    addLog('system', `${data.status}: ${data.message}`);
-                    break;
-            }
+    }
+    
+    // Buttons
+    document.getElementById('btnCapture').addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'command', command: 'capture' }));
         }
-        
-        function setStatus(status, text) {
-            dom.statusIndicator.className = 'status-indicator ' + status;
-            dom.statusText.textContent = text;
+    });
+    
+    document.getElementById('btnMaster').addEventListener('click', () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'command', command: 'master_all' }));
         }
-        
-        // ============================================
-        // LOG
-        // ============================================
-        function addLog(type, message) {
-            const time = new Date().toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + (type === 'offset' ? 'offset' : type === 'error' ? 'error' : '');
-            entry.innerHTML = `
-                <span class="log-time">${time}</span>
-                <span class="log-channel">[${type.toUpperCase()}]</span>
-                <span class="log-message">${message}</span>
-            `;
-            dom.logContent.insertBefore(entry, dom.logContent.firstChild);
-            
-            // Trim log
-            while (dom.logContent.children.length > 200) {
-                dom.logContent.removeChild(dom.logContent.lastChild);
-            }
-        }
-        
-        // ============================================
-        // CONTROLS
-        // ============================================
-        function setupControls() {
-            // Gauge selector
-            const gaugeSelect = document.getElementById('gaugeSelect');
-            if (gaugeSelect) {
-                gaugeSelect.addEventListener('change', (e) => {
-                    // Reload page with new gauge selected
-                    const gaugeId = e.target.value;
-                    window.location.href = `/dashboard/?gauge=${gaugeId}`;
-                });
-            }
-            
-            // View buttons
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    state.currentView = parseInt(btn.dataset.view);
-                    dom.channelGrid.className = `channel-grid grid-${state.currentView}`;
-                    renderChannelGrid();
-                });
-            });
-            
-            // Log toggle
-            document.getElementById('btnLog').addEventListener('click', () => {
-                state.logOpen = !state.logOpen;
-                dom.logPanel.classList.toggle('open', state.logOpen);
-            });
-            
-            // Reset stats
-            document.getElementById('btnReset').addEventListener('click', () => {
-                state.channelsList.forEach(idx => {
-                    if (state.channels[idx]) {
-                        state.channels[idx].min = null;
-                        state.channels[idx].max = null;
-                        state.channels[idx].count = 0;
+    });
+    
+    // Initialize
+    initSparklines();
+    connectWebSocket();
+    
+    // Simple trend chart
+    const ctx = document.getElementById('trendChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: FEATURES.length > 0 && FEATURES[0].sparkline ? 
+                    FEATURES[0].sparkline.map((_, i) => i + 1) : [],
+                datasets: FEATURES.map((f, i) => ({
+                    label: f.name,
+                    data: f.sparkline ? f.sparkline.map(p => p.deviation) : [],
+                    borderColor: ['#00ff88', '#3b82f6', '#a855f7'][i % 3],
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#888', font: { size: 10 } } }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { 
+                        grid: { color: '#333' },
+                        ticks: { color: '#888', font: { family: 'JetBrains Mono', size: 10 } }
                     }
-                });
-                state.totalReadings = 0;
-                renderChannelGrid();
-                addLog('system', 'Statistics reset');
-            });
-            
-            // Filter control
-            document.getElementById('filterSelect').addEventListener('change', (e) => {
-                const level = parseInt(e.target.value);
-                state.filterLevel = level;
-                sendCommand('set_filter', { level: level });
-                const labels = ['Off', '2', '4', '8', '16', '32', '64'];
-                addLog('system', `Filter set to ${labels[level]} samples`);
-            });
-            
-            // Master all channels
-            document.getElementById('btnMaster').addEventListener('click', () => {
-                masterAllChannels();
-            });
-            
-            // Clear all masters
-            document.getElementById('btnClearMaster').addEventListener('click', () => {
-                clearAllMasters();
-            });
-            
-            // Per-channel master buttons (delegated)
-            dom.channelGrid.addEventListener('click', (e) => {
-                if (e.target.classList.contains('channel-master-btn')) {
-                    const channel = parseInt(e.target.dataset.channel);
-                    masterChannel(channel);
-                }
-            });
-        }
-        
-        // ============================================
-        // MASTERING
-        // ============================================
-        function masterChannel(index) {
-            const ch = state.channels[index];
-            if (!ch) return;
-            if (ch.rawValue !== null) {
-                // Set offset so current raw value becomes nominal
-                ch.masterOffset = ch.rawValue - ch.nominal;
-                sendCommand('master_channel', { channel: index, offset: ch.masterOffset });
-                addLog('system', `CH ${index + 1} mastered (offset: ${ch.masterOffset >= 0 ? '+' : ''}${ch.masterOffset.toFixed(4)})`);
-            } else {
-                addLog('error', `CH ${index + 1} has no reading to master`);
-            }
-        }
-        
-        function masterAllChannels() {
-            let count = 0;
-            const visibleCount = Math.min(state.currentView, state.channelsList.length);
-            for (let i = 0; i < visibleCount; i++) {
-                const idx = state.channelsList[i];
-                const ch = state.channels[idx];
-                if (ch && ch.rawValue !== null) {
-                    ch.masterOffset = ch.rawValue - ch.nominal;
-                    count++;
                 }
             }
-            sendCommand('master_all', {});
-            addLog('system', `Mastered ${count} channels`);
-        }
-        
-        function clearAllMasters() {
-            state.channelsList.forEach(idx => {
-                if (state.channels[idx]) {
-                    state.channels[idx].masterOffset = 0;
-                }
-            });
-            sendCommand('clear_masters', {});
-            addLog('system', 'All master offsets cleared');
-        }
-        
-        // ============================================
-        // SEND COMMANDS TO SERVER
-        // ============================================
-        function sendCommand(command, params) {
-            if (state.socket && state.connected) {
-                state.socket.send(JSON.stringify({
-                    type: 'command',
-                    command: command,
-                    ...params
-                }));
-            }
-        }
-        
-        // Clock
-        function updateClock() {
-            dom.clock.textContent = new Date().toLocaleTimeString();
-        }
-        
-        // ============================================
-        // INIT
-        // ============================================
-        function init() {
-            initChannelsFromConfig();
-            dom.channelCount.textContent = state.channelsList.length;
-            renderChannelGrid();
-            setupControls();
-            connect();
-            updateClock();
-            setInterval(updateClock, 1000);
-        }
-        
-        init();
-    </script>
-</body>
-</html>
+        });
+    }
+</script>
+{% endblock %}

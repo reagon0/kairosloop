@@ -1,0 +1,349 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Compensation Events{% endblock %}
+{% block nav_compensation %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .page-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .page-subtitle {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+    
+    .btn-back {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        color: var(--text-secondary);
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.15s ease;
+    }
+    
+    .btn-back:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+    
+    /* Event Table */
+    .events-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+    
+    .events-table th {
+        text-align: left;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-dark);
+        background: var(--bg-panel);
+        position: sticky;
+        top: 0;
+    }
+    
+    .events-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-dark);
+        vertical-align: middle;
+    }
+    
+    .events-table tr:hover {
+        background: var(--bg-panel);
+    }
+    
+    /* Timestamp */
+    .event-time {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        white-space: nowrap;
+    }
+    
+    /* Feature/Tool */
+    .event-feature {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    
+    .event-tool {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+    
+    /* Values */
+    .event-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+    }
+    
+    .event-value.positive {
+        color: var(--green);
+    }
+    
+    .event-value.negative {
+        color: var(--red);
+    }
+    
+    .event-value.neutral {
+        color: var(--text-secondary);
+    }
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-badge.applied {
+        background: rgba(0, 255, 136, 0.1);
+        color: var(--green);
+    }
+    
+    .status-badge.skipped {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-dim);
+    }
+    
+    .status-badge.clamped {
+        background: rgba(255, 204, 0, 0.1);
+        color: var(--yellow);
+    }
+    
+    .status-badge.blocked {
+        background: rgba(255, 51, 51, 0.1);
+        color: var(--red);
+    }
+    
+    .status-badge.error {
+        background: rgba(255, 51, 51, 0.1);
+        color: var(--red);
+    }
+    
+    /* Reason */
+    .event-reason {
+        font-size: 11px;
+        color: var(--text-dim);
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Accumulated */
+    .accumulated-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .accumulated-track {
+        flex: 1;
+        height: 4px;
+        background: var(--bg-recessed);
+        border-radius: 2px;
+        overflow: hidden;
+        min-width: 60px;
+    }
+    
+    .accumulated-fill {
+        height: 100%;
+        background: var(--green);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+    
+    .accumulated-fill.warning {
+        background: var(--yellow);
+    }
+    
+    .accumulated-fill.critical {
+        background: var(--red);
+    }
+    
+    .accumulated-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--text-dim);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+    
+    /* Filter rule indicator */
+    .filter-indicator {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .filter-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .filter-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--text-primary);
+        background: var(--bg-recessed);
+        padding: 4px 10px;
+        border-radius: 4px;
+    }
+    
+    .filter-clear {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--text-dim);
+        text-decoration: none;
+    }
+    
+    .filter-clear:hover {
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Compensation Events</h1>
+            <p class="page-subtitle">Log of all compensation decisions</p>
+        </div>
+        <a href="{% url 'compensation:rule_list' %}" class="btn-back">← Back to Rules</a>
+    </div>
+    
+    {% if rule %}
+    <div class="filter-indicator">
+        <span class="filter-label">Filtering by:</span>
+        <span class="filter-value">{{ rule.feature.name }} → T{{ rule.tool_number }}</span>
+        <a href="{% url 'compensation:event_list' %}" class="filter-clear">Clear filter</a>
+    </div>
+    {% endif %}
+    
+    {% if events %}
+    <table class="events-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Feature / Tool</th>
+                <th>Deviation</th>
+                <th>Offset</th>
+                <th>Status</th>
+                <th>Accumulated</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td class="event-time">
+                    {{ event.timestamp|date:"M d, H:i:s" }}
+                </td>
+                
+                <td>
+                    <div class="event-feature">{{ event.rule.feature.name }}</div>
+                    <div class="event-tool">T{{ event.rule.tool_number }} → {{ event.rule.controller.name }}</div>
+                </td>
+                
+                <td>
+                    <span class="event-value {% if event.deviation_in > 0 %}positive{% elif event.deviation_in < 0 %}negative{% else %}neutral{% endif %}">
+                        {{ event.deviation_in|floatformat:4 }}
+                    </span>
+                </td>
+                
+                <td>
+                    {% if event.offset_applied != 0 %}
+                    <span class="event-value {% if event.offset_applied > 0 %}positive{% elif event.offset_applied < 0 %}negative{% else %}neutral{% endif %}">
+                        {{ event.offset_applied|floatformat:4 }}
+                    </span>
+                    {% else %}
+                    <span class="event-value neutral">—</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    <span class="status-badge {{ event.status|lower }}">
+                        {{ event.status }}
+                    </span>
+                </td>
+                
+                <td>
+                    {% with pct=event.accumulated_after|divisibleby:event.rule.wear_limit %}
+                    <div class="accumulated-bar">
+                        <div class="accumulated-track">
+                            {% widthratio event.accumulated_after event.rule.wear_limit 100 as width %}
+                            <div class="accumulated-fill {% if width >= 100 %}critical{% elif width >= 80 %}warning{% endif %}" 
+                                 style="width: {% if width > 100 %}100{% else %}{{ width }}{% endif %}%"></div>
+                        </div>
+                        <span class="accumulated-value">{{ event.accumulated_after|floatformat:3 }}</span>
+                    </div>
+                    {% endwith %}
+                </td>
+                
+                <td>
+                    <span class="event-reason" title="{{ event.reason }}">{{ event.reason }}</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No compensation events recorded yet</p>
+        <p style="font-size: 12px;">Events will appear here as measurements trigger compensation decisions</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
