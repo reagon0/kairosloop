@@ -88,12 +88,160 @@
     .panel-content {
         padding: 16px;
     }
+
+    /* ============================================
+       SIMULATION PANEL
+       ============================================ */
+    .tool-wear-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+    }
     
-    .panel-actions {
+    .tool-wear-card.worn {
+        border-color: var(--yellow);
+    }
+    
+    .tool-wear-card.critical {
+        border-color: var(--red);
+    }
+    
+    #simulation-panel.running .panel-title-icon {
+        background: var(--green);
+        animation: pulse 1s infinite;
+    }
+    
+    #simulation-panel.stopped .panel-title-icon {
+        background: var(--text-dim);
+    }
+    
+    input[type="range"] {
+        -webkit-appearance: none;
+        background: var(--bg-recessed);
+        border-radius: 4px;
+        height: 6px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        background: var(--green);
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        background: var(--green);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+    }
+
+    /* ============================================
+       MACHINE PANEL
+       ============================================ */
+    .machine-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 16px;
+        align-items: center;
+    }
+    
+    .machine-status-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .machine-state {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    .machine-state.idle { color: var(--text-secondary); }
+    .machine-state.running { color: var(--green); }
+    .machine-state.alarm { color: var(--red); animation: pulse 1s infinite; }
+    .machine-state.tool_change { color: var(--yellow); }
+    
+    .machine-alarm {
+        font-size: 12px;
+        color: var(--red);
+        padding: 8px 12px;
+        background: rgba(255, 68, 68, 0.1);
+        border: 1px solid var(--red);
+        border-radius: 4px;
+    }
+    
+    .machine-stats {
+        display: flex;
+        gap: 24px;
+    }
+    
+    .machine-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .machine-stat-label {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+    }
+    
+    .machine-stat-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .machine-actions {
         display: flex;
         gap: 8px;
     }
     
+    .machine-btn {
+        padding: 8px 16px;
+    }
+    
+    .machine-btn#btnMachineStart {
+        border-color: var(--green);
+        color: var(--green);
+    }
+    
+    .machine-btn#btnMachineStart:hover {
+        background: var(--green);
+        color: #000;
+    }
+    
+    .machine-btn#btnMachineStop {
+        border-color: var(--red);
+        color: var(--red);
+    }
+    
+    .machine-btn#btnMachineStop:hover {
+        background: var(--red);
+        color: #000;
+    }
+    
+    .machine-btn#btnMachineAck {
+        border-color: var(--yellow);
+        color: var(--yellow);
+    }
+    
+    .machine-btn#btnMachineAck:hover {
+        background: var(--yellow);
+        color: #000;
+    }
+
     /* ============================================
        STATS BAR
        ============================================ */
@@ -129,6 +277,54 @@
     .stat-value.pass { color: var(--green); }
     .stat-value.warn { color: var(--yellow); }
     .stat-value.fail { color: var(--red); }
+
+    /* ============================================
+       BUTTONS
+       ============================================ */
+    .btn {
+        padding: 10px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid var(--border-light);
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.15s;
+    }
+    
+    .btn:hover {
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+    }
+    
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn.primary, .btn-primary {
+        border-color: var(--green);
+        color: var(--green);
+    }
+    
+    .btn.primary:hover, .btn-primary:hover:not(:disabled) {
+        background: var(--green);
+        color: #000;
+    }
+    
+    .btn-secondary {
+        border-color: var(--border-light);
+        color: var(--text-secondary);
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
     
     /* ============================================
        LIVE SECTION
@@ -155,13 +351,8 @@
         gap: 12px;
     }
     
-    .feature-card.warn {
-        border-color: var(--yellow);
-    }
-    
-    .feature-card.alarm {
-        border-color: var(--red);
-    }
+    .feature-card.warn { border-color: var(--yellow); }
+    .feature-card.alarm { border-color: var(--red); }
     
     .feature-header {
         display: flex;
@@ -227,7 +418,6 @@
         color: var(--text-secondary);
     }
     
-    /* Sparkline */
     .feature-sparkline {
         height: 32px;
         display: flex;
@@ -248,7 +438,6 @@
     .sparkline-bar.warn { background: var(--yellow); }
     .sparkline-bar.alarm { background: var(--red); }
     
-    /* Tolerance bar */
     .feature-tolerance {
         display: flex;
         align-items: center;
@@ -346,37 +535,10 @@
         margin-top: 8px;
     }
     
-    .btn {
+    .actions-row .btn {
         flex: 1;
-        padding: 10px 16px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border: 1px solid var(--border-light);
-        background: var(--bg-card);
-        color: var(--text-secondary);
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.15s;
     }
-    
-    .btn:hover {
-        border-color: var(--text-secondary);
-        color: var(--text-primary);
-    }
-    
-    .btn.primary {
-        border-color: var(--green);
-        color: var(--green);
-    }
-    
-    .btn.primary:hover {
-        background: var(--green);
-        color: #000;
-    }
-    
+
     /* ============================================
        COMPENSATION SECTION
        ============================================ */
@@ -394,13 +556,8 @@
         padding: 16px;
     }
     
-    .tool-card.warning {
-        border-color: var(--yellow);
-    }
-    
-    .tool-card.critical {
-        border-color: var(--red);
-    }
+    .tool-card.warning { border-color: var(--yellow); }
+    .tool-card.critical { border-color: var(--red); }
     
     .tool-header {
         display: flex;
@@ -480,10 +637,7 @@
         margin-bottom: 4px;
     }
     
-    .tool-stat-label {
-        color: var(--text-dim);
-    }
-    
+    .tool-stat-label { color: var(--text-dim); }
     .tool-stat-value {
         font-family: 'JetBrains Mono', monospace;
         color: var(--text-secondary);
@@ -573,7 +727,7 @@
     .event-status.applied { background: rgba(0, 255, 136, 0.2); color: var(--green); }
     .event-status.clamped { background: rgba(255, 204, 0, 0.2); color: var(--yellow); }
     .event-status.error { background: rgba(255, 68, 68, 0.2); color: var(--red); }
-    
+
     /* ============================================
        HISTORY SECTION
        ============================================ */
@@ -623,13 +777,11 @@
         margin-top: 4px;
     }
     
-    .history-table {
-        margin-top: 16px;
-    }
+    .history-table { margin-top: 16px; }
     
     .history-table-header {
         display: grid;
-        grid-template-columns: 80px 1fr 100px 80px;
+        grid-template-columns: 70px 1fr 90px 90px 80px;
         gap: 8px;
         padding: 8px 12px;
         background: var(--bg-panel);
@@ -658,14 +810,9 @@
         font-size: 12px;
     }
     
-    .history-table-row:last-child {
-        border-bottom: none;
-    }
-    
-    .history-table-row:hover {
-        background: var(--bg-hover);
-    }
-    
+    .history-table-row:last-child { border-bottom: none; }
+    .history-table-row:hover { background: var(--bg-hover); }
+
     /* ============================================
        EMPTY STATES
        ============================================ */
@@ -690,6 +837,159 @@
 {% block content %}
 <div class="dashboard-container">
     
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         SIMULATION PANEL
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div class="panel stopped" id="simulation-panel">
+        <div class="panel-header" onclick="togglePanel('simulation-panel')">
+            <div class="panel-title">
+                <div class="panel-title-icon"></div>
+                Simulation
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span id="sim-status-text" style="font-size: 11px; color: var(--text-dim);">STOPPED</span>
+                <span class="panel-toggle">▼</span>
+            </div>
+        </div>
+        <div class="panel-content">
+            <!-- Controls row -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-dark);">
+                <div style="display: flex; gap: 24px; align-items: center;">
+                    <div>
+                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Cycle Time</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="range" id="cycle-time-slider" min="1" max="10" step="0.5" value="3" style="width: 100px;" onchange="setCycleTime(this.value)">
+                            <span id="cycle-time-value" style="font-family: 'JetBrains Mono'; font-size: 14px;">3.0s</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Total Cycles</div>
+                        <div id="sim-total-cycles" style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 600;">0</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" id="sim-start-btn" onclick="startSimulation()">▶ Start</button>
+                    <button class="btn btn-secondary" id="sim-stop-btn" onclick="stopSimulation()" disabled>⏹ Stop</button>
+                    <button class="btn btn-secondary" onclick="resetSimulation()">↺ Reset</button>
+                </div>
+            </div>
+            
+            <!-- Tool wear cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                <!-- Tool 1 -->
+                <div class="tool-wear-card" id="tool-1-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <span style="font-weight: 600;">T1</span>
+                            <span style="color: var(--text-dim); font-size: 12px; margin-left: 8px;">OD Roughing</span>
+                        </div>
+                        <span id="tool-1-cycles" style="font-size: 11px; color: var(--text-dim);">0 cycles</span>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span style="color: var(--text-dim);">WEAR</span>
+                            <span id="tool-1-wear-value" style="font-family: 'JetBrains Mono';">0.0000</span>
+                        </div>
+                        <div style="background: var(--bg-recessed); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div id="tool-1-wear-bar" style="height: 100%; width: 0%; background: var(--green); transition: width 0.3s, background 0.3s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 2px;">
+                            <span>0%</span>
+                            <span id="tool-1-wear-pct">0%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Wear Rate</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="range" id="tool-1-rate-slider" min="0.0001" max="0.002" step="0.0001" value="0.0005" style="width: 100px;" onchange="setWearRate(1, this.value)">
+                            <span id="tool-1-rate-value" style="font-family: 'JetBrains Mono'; font-size: 12px;">0.0005</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-small btn-secondary" onclick="induceWear(1, 0.01)">+0.010</button>
+                        <button class="btn btn-small btn-secondary" onclick="induceWear(1, 0.02)">+0.020</button>
+                        <button class="btn btn-small" onclick="changeTool(1)" style="margin-left: auto;">🔧 Change</button>
+                    </div>
+                </div>
+                
+                <!-- Tool 2 -->
+                <div class="tool-wear-card" id="tool-2-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div>
+                            <span style="font-weight: 600;">T2</span>
+                            <span style="color: var(--text-dim); font-size: 12px; margin-left: 8px;">Face/Length</span>
+                        </div>
+                        <span id="tool-2-cycles" style="font-size: 11px; color: var(--text-dim);">0 cycles</span>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                            <span style="color: var(--text-dim);">WEAR</span>
+                            <span id="tool-2-wear-value" style="font-family: 'JetBrains Mono';">0.0000</span>
+                        </div>
+                        <div style="background: var(--bg-recessed); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div id="tool-2-wear-bar" style="height: 100%; width: 0%; background: var(--green); transition: width 0.3s, background 0.3s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 2px;">
+                            <span>0%</span>
+                            <span id="tool-2-wear-pct">0%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Wear Rate</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="range" id="tool-2-rate-slider" min="0.0001" max="0.002" step="0.0001" value="0.0003" style="width: 100px;" onchange="setWearRate(2, this.value)">
+                            <span id="tool-2-rate-value" style="font-family: 'JetBrains Mono'; font-size: 12px;">0.0003</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-small btn-secondary" onclick="induceWear(2, 0.01)">+0.010</button>
+                        <button class="btn btn-small btn-secondary" onclick="induceWear(2, 0.02)">+0.020</button>
+                        <button class="btn btn-small" onclick="changeTool(2)" style="margin-left: auto;">🔧 Change</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         MACHINE PANEL
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div class="panel" id="panelMachine">
+        <div class="panel-header" onclick="togglePanel('panelMachine')">
+            <div class="panel-title">
+                <div class="panel-title-icon" id="machineStateIcon" style="background: var(--text-dim);"></div>
+                Machine
+            </div>
+            <span class="panel-toggle">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="machine-grid">
+                <div class="machine-status-card">
+                    <div class="machine-state" id="machineState">DISCONNECTED</div>
+                    <div class="machine-alarm" id="machineAlarm" style="display: none;"></div>
+                </div>
+                <div class="machine-stats">
+                    <div class="machine-stat">
+                        <span class="machine-stat-label">Parts Today</span>
+                        <span class="machine-stat-value" id="machinePartCount">0</span>
+                    </div>
+                    <div class="machine-stat">
+                        <span class="machine-stat-label">Cycle Time</span>
+                        <span class="machine-stat-value" id="machineCycleTime">—</span>
+                    </div>
+                </div>
+                <div class="machine-actions">
+                    <button class="btn machine-btn" id="btnMachineStart">Start</button>
+                    <button class="btn machine-btn" id="btnMachineStop">Stop</button>
+                    <button class="btn machine-btn" id="btnMachineAck" style="display: none;">Ack Alarm</button>
+                    <button class="btn machine-btn" id="btnMachineReset">Reset Count</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- STATS BAR -->
     <div class="stats-bar">
         <div class="stat-item">
@@ -714,7 +1014,9 @@
         </div>
     </div>
     
-    <!-- LIVE PANEL -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         LIVE PANEL
+         ═══════════════════════════════════════════════════════════════════════════ -->
     <div class="panel" id="panelLive">
         <div class="panel-header" onclick="togglePanel('panelLive')">
             <div class="panel-title">
@@ -725,7 +1027,6 @@
         </div>
         <div class="panel-content">
             <div class="live-grid">
-                <!-- Features -->
                 <div class="features-grid" id="featuresGrid">
                     {% for feature in features %}
                     <div class="feature-card" id="feature-card-{{ feature.id }}" data-feature-id="{{ feature.id }}">
@@ -741,9 +1042,7 @@
                             <span class="feature-unit">{{ feature.unit }}</span>
                         </div>
                         <div class="feature-deviation" id="deviation-{{ feature.id }}">Deviation: —</div>
-                        <div class="feature-sparkline" id="sparkline-{{ feature.id }}">
-                            <!-- Populated by JS -->
-                        </div>
+                        <div class="feature-sparkline" id="sparkline-{{ feature.id }}"></div>
                         {% if feature.tolerance_upper %}
                         <div class="feature-tolerance">
                             <div class="tolerance-bar">
@@ -762,7 +1061,6 @@
                     {% endfor %}
                 </div>
                 
-                <!-- Channels + Actions -->
                 <div class="channels-panel">
                     <div class="channels-title">Live Channels</div>
                     {% for gauge in gauges %}
@@ -786,7 +1084,9 @@
         </div>
     </div>
     
-    <!-- COMPENSATION PANEL -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         COMPENSATION PANEL
+         ═══════════════════════════════════════════════════════════════════════════ -->
     <div class="panel" id="panelCompensation">
         <div class="panel-header" onclick="togglePanel('panelCompensation')">
             <div class="panel-title">
@@ -796,7 +1096,6 @@
             <span class="panel-toggle">▼</span>
         </div>
         <div class="panel-content">
-            <!-- Tool wear gauges -->
             <div class="compensation-grid" id="compensationGrid">
                 {% for rule in compensation_rules %}
                 <div class="tool-card {{ rule.wear_status }}" id="tool-card-{{ rule.id }}" data-rule-id="{{ rule.id }}">
@@ -846,7 +1145,6 @@
                 {% endfor %}
             </div>
             
-            <!-- Recent events -->
             <div class="events-section">
                 <div class="events-title">Recent Compensation Events</div>
                 <div class="events-feed" id="eventsFeed">
@@ -870,7 +1168,9 @@
         </div>
     </div>
     
-    <!-- HISTORY PANEL -->
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         HISTORY PANEL
+         ═══════════════════════════════════════════════════════════════════════════ -->
     <div class="panel" id="panelHistory">
         <div class="panel-header" onclick="togglePanel('panelHistory')">
             <div class="panel-title">
@@ -897,16 +1197,14 @@
             </div>
             
             <div class="history-table">
-                <div class="history-table-header" style="grid-template-columns: 70px 1fr 90px 90px 80px;">
+                <div class="history-table-header">
                     <span>Time</span>
                     <span>Feature</span>
                     <span>Nominal</span>
                     <span>Deviation</span>
                     <span>Status</span>
                 </div>
-                <div class="history-table-body" id="historyTableBody">
-                    <!-- Populated by JS -->
-                </div>
+                <div class="history-table-body" id="historyTableBody"></div>
             </div>
         </div>
     </div>
@@ -927,307 +1225,468 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
-    const FEATURES = SERVER_DATA.features;
-    const COMPENSATION = SERVER_DATA.compensation;
+// =============================================================================
+// DATA & STATE
+// =============================================================================
+const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
+const FEATURES = SERVER_DATA.features;
+const COMPENSATION = SERVER_DATA.compensation;
+
+let ws = null;
+let reconnectAttempts = 0;
+let simulationRunning = false;
+window.channelValues = {};
+
+// =============================================================================
+// PANEL COLLAPSE
+// =============================================================================
+function togglePanel(panelId) {
+    document.getElementById(panelId).classList.toggle('collapsed');
+}
+
+// =============================================================================
+// WEBSOCKET
+// =============================================================================
+function connectWebSocket() {
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${wsScheme}://${window.location.host}/ws/gauge/`);
     
-    // Panel collapse
-    function togglePanel(panelId) {
-        document.getElementById(panelId).classList.toggle('collapsed');
+    ws.onopen = () => {
+        console.log('WebSocket connected');
+        reconnectAttempts = 0;
+        document.getElementById('wsStatus').classList.add('connected');
+        document.getElementById('wsStatusText').textContent = 'Connected';
+    };
+    
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        handleMessage(data);
+    };
+    
+    ws.onclose = () => {
+        document.getElementById('wsStatus').classList.remove('connected');
+        document.getElementById('wsStatusText').textContent = 'Disconnected';
+        if (reconnectAttempts < 5) {
+            reconnectAttempts++;
+            setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+        }
+    };
+}
+
+function sendCommand(command, params = {}) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'command', command, ...params }));
+    }
+}
+
+function handleMessage(data) {
+    switch (data.type) {
+        case 'gauge_reading':
+            window.channelValues[data.channel] = data.value;
+            updateChannel(data.channel, data.value);
+            updateFeatures(window.channelValues);
+            break;
+        case 'capture_result':
+            handleCaptureResult(data);
+            break;
+        case 'machine_state':
+            handleMachineState(data);
+            break;
+        case 'simulation_state':
+            handleSimulationState(data);
+            break;
+        case 'command_response':
+            console.log(`Command ${data.command}: ${data.success ? '✓' : '✗'} ${data.message}`);
+            break;
+        case 'connection_established':
+            console.log('WebSocket connected:', data.message);
+            break;
+    }
+}
+
+// =============================================================================
+// SIMULATION CONTROLS
+// =============================================================================
+function startSimulation() {
+    sendCommand('simulation_start');
+    simulationRunning = true;
+    updateSimulationUI();
+    sendCommand('machine_start');
+}
+
+function stopSimulation() {
+    sendCommand('simulation_stop');
+    simulationRunning = false;
+    updateSimulationUI();
+}
+
+function resetSimulation() {
+    sendCommand('simulation_reset');
+    simulationRunning = false;
+    updateSimulationUI();
+    
+    document.getElementById('sim-total-cycles').textContent = '0';
+    [1, 2].forEach(tool => {
+        document.getElementById(`tool-${tool}-wear-value`).textContent = '0.0000';
+        document.getElementById(`tool-${tool}-wear-bar`).style.width = '0%';
+        document.getElementById(`tool-${tool}-wear-bar`).style.background = 'var(--green)';
+        document.getElementById(`tool-${tool}-wear-pct`).textContent = '0%';
+        document.getElementById(`tool-${tool}-cycles`).textContent = '0 cycles';
+        document.getElementById(`tool-${tool}-card`).classList.remove('worn', 'critical');
+    });
+}
+
+function setCycleTime(value) {
+    document.getElementById('cycle-time-value').textContent = `${parseFloat(value).toFixed(1)}s`;
+    sendCommand('simulation_set_cycle_time', { cycle_time: parseFloat(value) });
+}
+
+function setWearRate(tool, rate) {
+    document.getElementById(`tool-${tool}-rate-value`).textContent = parseFloat(rate).toFixed(4);
+    sendCommand('simulation_set_wear_rate', { tool: tool, rate: parseFloat(rate) });
+}
+
+function induceWear(tool, amount) {
+    sendCommand('simulation_induce_wear', { tool: tool, amount: amount });
+}
+
+function changeTool(tool) {
+    sendCommand('machine_change_tool', { tool: tool });
+}
+
+function updateSimulationUI() {
+    const panel = document.getElementById('simulation-panel');
+    const statusText = document.getElementById('sim-status-text');
+    const startBtn = document.getElementById('sim-start-btn');
+    const stopBtn = document.getElementById('sim-stop-btn');
+    
+    if (simulationRunning) {
+        panel.classList.add('running');
+        panel.classList.remove('stopped');
+        statusText.textContent = 'RUNNING';
+        statusText.style.color = 'var(--green)';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+    } else {
+        panel.classList.add('stopped');
+        panel.classList.remove('running');
+        statusText.textContent = 'STOPPED';
+        statusText.style.color = 'var(--text-dim)';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+}
+
+function handleSimulationState(data) {
+    if (data.enabled !== undefined) {
+        simulationRunning = data.enabled;
+        updateSimulationUI();
     }
     
-    // Initialize sparklines from server data
-    function initSparklines() {
-        FEATURES.forEach(feature => {
-            const container = document.getElementById(`sparkline-${feature.id}`);
-            if (!container || !feature.sparkline.length) return;
+    if (data.cycle_time !== undefined) {
+        document.getElementById('cycle-time-slider').value = data.cycle_time;
+        document.getElementById('cycle-time-value').textContent = `${data.cycle_time.toFixed(1)}s`;
+    }
+    
+    const toolWear = data.tool_wear || data;
+    if (toolWear && toolWear.tools) {
+        if (toolWear.total_cycles !== undefined) {
+            document.getElementById('sim-total-cycles').textContent = toolWear.total_cycles;
+        }
+        
+        for (const [toolNum, toolData] of Object.entries(toolWear.tools)) {
+            const t = parseInt(toolNum);
+            const wearValue = toolData.wear || 0;
+            const wearPct = toolData.wear_percentage || 0;
+            const cycleCount = toolData.cycle_count || 0;
             
-            container.innerHTML = '';
-            const maxDev = Math.max(...feature.sparkline.map(d => Math.abs(d.deviation)), 0.001);
+            const wearValueEl = document.getElementById(`tool-${t}-wear-value`);
+            const wearBarEl = document.getElementById(`tool-${t}-wear-bar`);
+            const wearPctEl = document.getElementById(`tool-${t}-wear-pct`);
+            const cyclesEl = document.getElementById(`tool-${t}-cycles`);
+            const cardEl = document.getElementById(`tool-${t}-card`);
             
-            feature.sparkline.forEach(point => {
-                const bar = document.createElement('div');
-                bar.className = `sparkline-bar ${point.status.toLowerCase()}`;
-                const height = Math.min(100, (Math.abs(point.deviation) / maxDev) * 100);
-                bar.style.height = `${Math.max(10, height)}%`;
-                container.appendChild(bar);
-            });
+            if (wearValueEl) wearValueEl.textContent = wearValue.toFixed(4);
+            if (wearPctEl) wearPctEl.textContent = `${wearPct.toFixed(0)}%`;
+            if (cyclesEl) cyclesEl.textContent = `${cycleCount} cycles`;
             
-            // Set initial values
-            if (feature.last_value !== null) {
-                const valueEl = document.getElementById(`value-${feature.id}`);
-                const statusEl = document.getElementById(`status-${feature.id}`);
-                const deviationEl = document.getElementById(`deviation-${feature.id}`);
-                
-                if (valueEl) {
-                    valueEl.textContent = feature.last_value.toFixed(feature.resolution);
-                    valueEl.className = `feature-value ${feature.last_status.toLowerCase()}`;
-                }
-                if (statusEl) {
-                    statusEl.className = `feature-status ${feature.last_status.toLowerCase()}`;
-                }
-                if (deviationEl && feature.last_deviation !== null) {
-                    const d = feature.last_deviation;
-                    deviationEl.textContent = `Deviation: ${d >= 0 ? '+' : ''}${d.toFixed(feature.resolution)}`;
-                }
+            if (wearBarEl) {
+                wearBarEl.style.width = `${Math.min(wearPct, 100)}%`;
+                wearBarEl.style.background = wearPct >= 100 ? 'var(--red)' : wearPct >= 75 ? 'var(--yellow)' : 'var(--green)';
             }
-        });
-    }
-    
-    // WebSocket
-    let ws = null;
-    let reconnectAttempts = 0;
-    
-    function connectWebSocket() {
-        const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        ws = new WebSocket(`${wsScheme}://${window.location.host}/ws/gauge/`);
-        
-        ws.onopen = () => {
-            console.log('WebSocket connected');
-            reconnectAttempts = 0;
-            document.getElementById('wsStatus').classList.add('connected');
-            document.getElementById('wsStatusText').textContent = 'Connected';
-        };
-        
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            handleMessage(data);
-        };
-        
-        ws.onclose = () => {
-            document.getElementById('wsStatus').classList.remove('connected');
-            document.getElementById('wsStatusText').textContent = 'Disconnected';
-            if (reconnectAttempts < 5) {
-                reconnectAttempts++;
-                setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+            
+            if (cardEl) {
+                cardEl.classList.remove('worn', 'critical');
+                if (toolData.is_worn) cardEl.classList.add('critical');
+                else if (wearPct >= 75) cardEl.classList.add('worn');
             }
-        };
-    }
-    
-    // Store channel values
-    window.channelValues = {};
-    
-    function handleMessage(data) {
-        switch (data.type) {
-            case 'gauge_reading':
-                window.channelValues[data.channel] = data.value;
-                updateChannel(data.channel, data.value);
-                updateFeatures(window.channelValues);
-                break;
-            case 'capture_result':
-                handleCaptureResult(data);
-                break;
-            case 'command_response':
-                console.log('Command:', data.command, data.success, data.message);
-                break;
+            
+            if (toolData.wear_rate !== undefined) {
+                const rateSlider = document.getElementById(`tool-${t}-rate-slider`);
+                const rateValue = document.getElementById(`tool-${t}-rate-value`);
+                if (rateSlider) rateSlider.value = toolData.wear_rate;
+                if (rateValue) rateValue.textContent = toolData.wear_rate.toFixed(4);
+            }
         }
     }
+}
+
+// =============================================================================
+// MACHINE STATE
+// =============================================================================
+function handleMachineState(data) {
+    const stateEl = document.getElementById('machineState');
+    const iconEl = document.getElementById('machineStateIcon');
+    const alarmEl = document.getElementById('machineAlarm');
+    const ackBtn = document.getElementById('btnMachineAck');
+    const partCountEl = document.getElementById('machinePartCount');
+    const cycleTimeEl = document.getElementById('machineCycleTime');
     
-    function updateChannel(index, value) {
-        const el = document.getElementById(`channel-${index}`);
-        if (el) el.textContent = value.toFixed(4);
+    const state = data.state || 'DISCONNECTED';
+    stateEl.textContent = state;
+    stateEl.className = `machine-state ${state.toLowerCase()}`;
+    
+    const stateColors = {
+        'IDLE': 'var(--text-secondary)',
+        'RUNNING': 'var(--green)',
+        'ALARM': 'var(--red)',
+        'TOOL_CHANGE': 'var(--yellow)',
+        'DISCONNECTED': 'var(--text-dim)'
+    };
+    iconEl.style.background = stateColors[state] || 'var(--text-dim)';
+    
+    if (data.alarm_active && data.alarm_message) {
+        alarmEl.textContent = data.alarm_message;
+        alarmEl.style.display = 'block';
+        ackBtn.style.display = 'block';
+    } else {
+        alarmEl.style.display = 'none';
+        ackBtn.style.display = 'none';
     }
     
-    function updateFeatures(channelValues) {
-        FEATURES.forEach(feature => {
-            const inputs = {};
-            let hasAll = true;
-            
-            feature.inputs.forEach(inp => {
-                const val = channelValues[inp.channel_index];
-                if (val !== undefined) {
-                    inputs[inp.label] = val;
-                } else {
-                    hasAll = false;
-                }
-            });
-            
-            if (!hasAll) return;
-            
-            // Evaluate formula
-            let value;
-            try {
-                let expr = feature.formula.toUpperCase();
-                for (const [label, val] of Object.entries(inputs)) {
-                    expr = expr.replace(new RegExp(label, 'g'), val);
-                }
-                value = eval(expr);
-            } catch (e) { return; }
-            
-            // Update display
+    if (data.part_count_today !== undefined) partCountEl.textContent = data.part_count_today;
+    if (data.cycle_time !== undefined) cycleTimeEl.textContent = `${data.cycle_time}s`;
+}
+
+// =============================================================================
+// CHANNEL & FEATURE UPDATES
+// =============================================================================
+function updateChannel(index, value) {
+    const el = document.getElementById(`channel-${index}`);
+    if (el) el.textContent = value.toFixed(4);
+}
+
+function updateFeatures(channelValues) {
+    FEATURES.forEach(feature => {
+        const inputs = {};
+        let hasAll = true;
+        
+        feature.inputs.forEach(inp => {
+            const val = channelValues[inp.channel_index];
+            if (val !== undefined) inputs[inp.label] = val;
+            else hasAll = false;
+        });
+        
+        if (!hasAll) return;
+        
+        let value;
+        try {
+            let expr = feature.formula.toUpperCase();
+            for (const [label, val] of Object.entries(inputs)) {
+                expr = expr.replace(new RegExp(label, 'g'), val);
+            }
+            value = eval(expr);
+        } catch (e) { return; }
+        
+        const valueEl = document.getElementById(`value-${feature.id}`);
+        const statusEl = document.getElementById(`status-${feature.id}`);
+        const deviationEl = document.getElementById(`deviation-${feature.id}`);
+        const cardEl = document.getElementById(`feature-card-${feature.id}`);
+        
+        if (valueEl) valueEl.textContent = value.toFixed(feature.resolution);
+        
+        const nominal = feature.nominal || 0;
+        const deviation = value - nominal;
+        const upper = feature.tolerance_upper;
+        const lower = feature.tolerance_lower || -upper;
+        
+        if (deviationEl) {
+            deviationEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(feature.resolution)}`;
+        }
+        
+        let status = 'ok';
+        if (upper && (deviation > upper || deviation < lower)) status = 'alarm';
+        else if (upper && (deviation > upper * 0.8 || deviation < lower * 0.8)) status = 'warn';
+        
+        if (statusEl) statusEl.className = `feature-status ${status}`;
+        if (valueEl) valueEl.className = `feature-value ${status}`;
+        if (cardEl) cardEl.className = `feature-card ${status === 'ok' ? '' : status}`;
+        
+        const fillEl = document.getElementById(`tolerance-fill-${feature.id}`);
+        if (fillEl && upper) {
+            const range = upper - lower;
+            const pos = ((deviation - lower) / range) * 100;
+            fillEl.style.left = `${Math.max(0, Math.min(90, pos - 5))}%`;
+            fillEl.style.width = '10%';
+            fillEl.className = `tolerance-fill ${status}`;
+        }
+    });
+}
+
+// =============================================================================
+// CAPTURE RESULT
+// =============================================================================
+function handleCaptureResult(data) {
+    if (data.all_pass) incrementStat('statPass');
+    else if (data.any_alarm) incrementStat('statFail');
+    else incrementStat('statWarn');
+    incrementStat('statTotal');
+    updatePassRate();
+    
+    data.features.forEach(f => {
+        addHistoryRow(f);
+        addSparklinePoint(f.id, f.deviation, f.status);
+    });
+    
+    const btn = document.getElementById('btnCapture');
+    btn.style.background = data.all_pass ? 'var(--green)' : 'var(--red)';
+    btn.style.color = '#000';
+    setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 500);
+}
+
+function incrementStat(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = parseInt(el.textContent) + 1;
+}
+
+function updatePassRate() {
+    const total = parseInt(document.getElementById('statTotal').textContent);
+    const pass = parseInt(document.getElementById('statPass').textContent);
+    const rate = total > 0 ? (pass / total * 100).toFixed(1) : 0;
+    document.getElementById('statRate').textContent = `${rate}%`;
+    document.getElementById('historyPassRate').textContent = `${rate}%`;
+}
+
+function addHistoryRow(feature) {
+    const tbody = document.getElementById('historyTableBody');
+    const row = document.createElement('div');
+    row.className = 'history-table-row';
+    
+    const deviation = feature.deviation || 0;
+    const deviationStr = (deviation >= 0 ? '+' : '') + deviation.toFixed(4);
+    const statusColor = feature.status === 'OK' ? 'green' : feature.status === 'WARN' ? 'yellow' : 'red';
+    
+    row.innerHTML = `
+        <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
+            ${new Date().toLocaleTimeString('en-US', {hour12: false})}
+        </span>
+        <span style="color: var(--text-secondary);">${feature.name}</span>
+        <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
+            ${feature.nominal !== undefined ? feature.nominal.toFixed(3) : '—'}
+        </span>
+        <span style="font-family: 'JetBrains Mono'; color: var(--${statusColor});">
+            ${deviationStr}
+        </span>
+        <span style="color: var(--${statusColor}); font-weight: 600;">
+            ${feature.status}
+        </span>
+    `;
+    tbody.insertBefore(row, tbody.firstChild);
+    while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+}
+
+function addSparklinePoint(featureId, deviation, status) {
+    const container = document.getElementById(`sparkline-${featureId}`);
+    if (!container) return;
+    
+    const bar = document.createElement('div');
+    bar.className = `sparkline-bar ${status.toLowerCase()}`;
+    bar.style.height = `${Math.min(100, Math.abs(deviation) * 1000)}%`;
+    container.appendChild(bar);
+    
+    while (container.children.length > 20) container.removeChild(container.firstChild);
+}
+
+// =============================================================================
+// SPARKLINES INIT
+// =============================================================================
+function initSparklines() {
+    FEATURES.forEach(feature => {
+        const container = document.getElementById(`sparkline-${feature.id}`);
+        if (!container || !feature.sparkline.length) return;
+        
+        container.innerHTML = '';
+        const maxDev = Math.max(...feature.sparkline.map(d => Math.abs(d.deviation)), 0.001);
+        
+        feature.sparkline.forEach(point => {
+            const bar = document.createElement('div');
+            bar.className = `sparkline-bar ${point.status.toLowerCase()}`;
+            const height = Math.min(100, (Math.abs(point.deviation) / maxDev) * 100);
+            bar.style.height = `${Math.max(10, height)}%`;
+            container.appendChild(bar);
+        });
+        
+        if (feature.last_value !== null) {
             const valueEl = document.getElementById(`value-${feature.id}`);
             const statusEl = document.getElementById(`status-${feature.id}`);
             const deviationEl = document.getElementById(`deviation-${feature.id}`);
-            const cardEl = document.getElementById(`feature-card-${feature.id}`);
             
-            if (valueEl) valueEl.textContent = value.toFixed(feature.resolution);
-            
-            const nominal = feature.nominal || 0;
-            const deviation = value - nominal;
-            const upper = feature.tolerance_upper;
-            const lower = feature.tolerance_lower || -upper;
-            
-            if (deviationEl) {
-                deviationEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(feature.resolution)}`;
+            if (valueEl) {
+                valueEl.textContent = feature.last_value.toFixed(feature.resolution);
+                valueEl.className = `feature-value ${feature.last_status.toLowerCase()}`;
             }
-            
-            let status = 'ok';
-            if (upper && (deviation > upper || deviation < lower)) {
-                status = 'alarm';
-            } else if (upper && (deviation > upper * 0.8 || deviation < lower * 0.8)) {
-                status = 'warn';
+            if (statusEl) statusEl.className = `feature-status ${feature.last_status.toLowerCase()}`;
+            if (deviationEl && feature.last_deviation !== null) {
+                const d = feature.last_deviation;
+                deviationEl.textContent = `Deviation: ${d >= 0 ? '+' : ''}${d.toFixed(feature.resolution)}`;
             }
-            
-            if (statusEl) statusEl.className = `feature-status ${status}`;
-            if (valueEl) valueEl.className = `feature-value ${status}`;
-            if (cardEl) cardEl.className = `feature-card ${status === 'ok' ? '' : status}`;
-            
-            // Update tolerance bar
-            const fillEl = document.getElementById(`tolerance-fill-${feature.id}`);
-            if (fillEl && upper) {
-                const range = upper - lower;
-                const pos = ((deviation - lower) / range) * 100;
-                fillEl.style.left = `${Math.max(0, Math.min(90, pos - 5))}%`;
-                fillEl.style.width = '10%';
-                fillEl.className = `tolerance-fill ${status}`;
-            }
-        });
-    }
-    
-    function handleCaptureResult(data) {
-        // Update stats
-        if (data.all_pass) {
-            incrementStat('statPass');
-        } else if (data.any_alarm) {
-            incrementStat('statFail');
-        } else {
-            incrementStat('statWarn');
-        }
-        incrementStat('statTotal');
-        updatePassRate();
-        
-        // Add to history table
-        data.features.forEach(f => {
-            addHistoryRow(f);
-            addSparklinePoint(f.id, f.deviation, f.status);
-        });
-        
-        // Flash capture button
-        const btn = document.getElementById('btnCapture');
-        btn.style.background = data.all_pass ? 'var(--green)' : 'var(--red)';
-        btn.style.color = '#000';
-        setTimeout(() => {
-            btn.style.background = '';
-            btn.style.color = '';
-        }, 500);
-    }
-    
-    function incrementStat(id) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = parseInt(el.textContent) + 1;
-    }
-    
-    function updatePassRate() {
-        const total = parseInt(document.getElementById('statTotal').textContent);
-        const pass = parseInt(document.getElementById('statPass').textContent);
-        const rate = total > 0 ? (pass / total * 100).toFixed(1) : 0;
-        document.getElementById('statRate').textContent = `${rate}%`;
-        document.getElementById('historyPassRate').textContent = `${rate}%`;
-    }
-    
-    function addHistoryRow(feature) {
-        const tbody = document.getElementById('historyTableBody');
-        const row = document.createElement('div');
-        row.className = 'history-table-row';
-        row.style.gridTemplateColumns = '70px 1fr 90px 90px 80px';
-        
-        const deviation = feature.deviation || 0;
-        const deviationStr = (deviation >= 0 ? '+' : '') + deviation.toFixed(4);
-        const statusColor = feature.status === 'OK' ? 'green' : feature.status === 'WARN' ? 'yellow' : 'red';
-        
-        row.innerHTML = `
-            <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
-                ${new Date().toLocaleTimeString('en-US', {hour12: false})}
-            </span>
-            <span style="color: var(--text-secondary);">${feature.name}</span>
-            <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
-                ${feature.nominal !== undefined ? feature.nominal.toFixed(3) : '—'}
-            </span>
-            <span style="font-family: 'JetBrains Mono'; color: var(--${statusColor});">
-                ${deviationStr}
-            </span>
-            <span style="color: var(--${statusColor}); font-weight: 600;">
-                ${feature.status}
-            </span>
-        `;
-        tbody.insertBefore(row, tbody.firstChild);
-        while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
-    }
-    
-    function addSparklinePoint(featureId, deviation, status) {
-        const container = document.getElementById(`sparkline-${featureId}`);
-        if (!container) return;
-        
-        const bar = document.createElement('div');
-        bar.className = `sparkline-bar ${status.toLowerCase()}`;
-        bar.style.height = `${Math.min(100, Math.abs(deviation) * 1000)}%`;
-        container.appendChild(bar);
-        
-        while (container.children.length > 20) {
-            container.removeChild(container.firstChild);
-        }
-    }
-    
-    // Buttons
-    document.getElementById('btnCapture').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'command', command: 'capture' }));
         }
     });
-    
-    document.getElementById('btnMaster').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'command', command: 'master_all' }));
+}
+
+// =============================================================================
+// BUTTON EVENT LISTENERS
+// =============================================================================
+document.getElementById('btnCapture').addEventListener('click', () => sendCommand('capture'));
+document.getElementById('btnMaster').addEventListener('click', () => sendCommand('master_all'));
+document.getElementById('btnMachineStart').addEventListener('click', () => sendCommand('machine_start'));
+document.getElementById('btnMachineStop').addEventListener('click', () => sendCommand('machine_stop'));
+document.getElementById('btnMachineAck').addEventListener('click', () => sendCommand('machine_ack_alarm'));
+document.getElementById('btnMachineReset').addEventListener('click', () => sendCommand('machine_reset_count'));
+
+// =============================================================================
+// INIT
+// =============================================================================
+initSparklines();
+connectWebSocket();
+
+// Trend chart
+const ctx = document.getElementById('trendChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: FEATURES.length > 0 && FEATURES[0].sparkline ? FEATURES[0].sparkline.map((_, i) => i + 1) : [],
+            datasets: FEATURES.map((f, i) => ({
+                label: f.name,
+                data: f.sparkline ? f.sparkline.map(p => p.deviation) : [],
+                borderColor: ['#00ff88', '#3b82f6', '#a855f7'][i % 3],
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { color: '#888', font: { size: 10 } } } },
+            scales: {
+                x: { display: false },
+                y: { grid: { color: '#333' }, ticks: { color: '#888', font: { family: 'JetBrains Mono', size: 10 } } }
+            }
         }
     });
-    
-    // Initialize
-    initSparklines();
-    connectWebSocket();
-    
-    // Simple trend chart
-    const ctx = document.getElementById('trendChart');
-    if (ctx) {
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: FEATURES.length > 0 && FEATURES[0].sparkline ? 
-                    FEATURES[0].sparkline.map((_, i) => i + 1) : [],
-                datasets: FEATURES.map((f, i) => ({
-                    label: f.name,
-                    data: f.sparkline ? f.sparkline.map(p => p.deviation) : [],
-                    borderColor: ['#00ff88', '#3b82f6', '#a855f7'][i % 3],
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.3,
-                    pointRadius: 0,
-                }))
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'top', labels: { color: '#888', font: { size: 10 } } }
-                },
-                scales: {
-                    x: { display: false },
-                    y: { 
-                        grid: { color: '#333' },
-                        ticks: { color: '#888', font: { family: 'JetBrains Mono', size: 10 } }
-                    }
-                }
-            }
-        });
-    }
+}
 </script>
 {% endblock %}

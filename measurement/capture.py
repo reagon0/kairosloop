@@ -142,6 +142,8 @@ class CaptureService:
     
     def __init__(self):
         self._gauge_service = None
+        self._driver = None
+        self._plc = None
     
     @property
     def gauge_service(self):
@@ -150,6 +152,31 @@ class CaptureService:
             from .services import get_service
             self._gauge_service = get_service()
         return self._gauge_service
+    
+    @property
+    def driver(self):
+        """Get the controller driver (lazy init with TestPLC)."""
+        if self._driver is None:
+            from controller.drivers import TestPLCDriver
+            from simulator.plc import get_test_plc
+            from dashboard.consumers import broadcast_machine_state
+            
+            self._plc = get_test_plc()
+            self._driver = TestPLCDriver(plc=self._plc, verbose=True)
+            self._driver.set_plc(self._plc)
+            self._driver.connect()
+            
+            # Wire PLC state changes to WebSocket broadcast
+            self._plc.set_state_callback(broadcast_machine_state)
+        return self._driver
+    
+    @property
+    def plc(self):
+        """Get the TestPLC instance."""
+        if self._plc is None:
+            # Accessing driver will init both
+            _ = self.driver
+        return self._plc
     
     def capture(
         self,
@@ -214,9 +241,10 @@ class CaptureService:
         if save_to_db and feature_results:
             self._save_measurements(feature_results, channel_values, source, timestamp)
         
-        # Trigger compensation
+        # Trigger compensation and alarms
         if trigger_compensation and feature_results:
             self._trigger_compensation(feature_results)
+            self._check_alarms(feature_results)
         
         # Build result
         capture_result = CaptureResult(
@@ -378,9 +406,11 @@ class CaptureService:
                                 f"Rule {rule.id}: wear limit reached, action={rule.wear_limit_action}"
                             )
                             if rule.wear_limit_action == 'STOP':
+                                # Request tool change
+                                self.driver.request_tool_change(rule.tool_number)
                                 continue
                         
-                        # Send offset to controller
+                        # Send offset to controller via driver
                         success = self._send_offset(rule, offset)
                         
                         # Record event
@@ -420,29 +450,30 @@ class CaptureService:
         except Exception as e:
             logger.exception("Error in compensation trigger")
     
-    def _send_offset(self, rule, offset: float) -> bool:
-        """Send offset to controller."""
-        try:
-            from controller.drivers import TestController
-            
-            service = self.gauge_service
-            controller_name = rule.controller.name
-            
-            if controller_name not in service._controllers:
-                if rule.controller.protocol == 'TEST':
-                    controller = TestController(verbose=True)
-                    service.add_controller(controller_name, controller)
-                    service.connect_controller(controller_name)
-                else:
-                    logger.warning(f"Controller {controller_name} not available")
-                    return False
-            
-            return service._send_offset(
-                controller_name=controller_name,
-                tool_number=rule.tool_number,
-                offset_value=offset
-            )
+    def _check_alarms(self, results: List[FeatureResult]):
+        """Send alarm to controller if any feature is in ALARM status."""
+        alarm_features = [r for r in results if r.status == 'ALARM']
         
+        if alarm_features:
+            # Build alarm message
+            messages = [
+                f"{r.feature_name}: {r.deviation:+.4f}"
+                for r in alarm_features
+            ]
+            alarm_message = "Out of tolerance - " + ", ".join(messages)
+            
+            # Send alarm to controller
+            self.driver.send_alarm(alarm_message)
+            logger.warning(f"ALARM sent to controller: {alarm_message}")
+    
+    def _send_offset(self, rule, offset: float) -> bool:
+        """Send offset to controller via driver."""
+        try:
+            return self.driver.write_offset(
+                tool=rule.tool_number,
+                axis=rule.offset_axis,
+                value=offset
+            )
         except Exception as e:
             logger.exception(f"Error sending offset to controller")
             return False

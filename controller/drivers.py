@@ -273,63 +273,6 @@ class TestPLCDriver(BaseController):
 
 
 # =============================================================================
-# LEGACY TEST CONTROLLER (backwards compatibility)
-# =============================================================================
-
-class TestController(BaseController):
-    """
-    Simple test controller that just logs commands.
-    For backwards compatibility with existing code.
-    """
-    
-    def __init__(self, verbose: bool = True):
-        super().__init__()
-        self._verbose = verbose
-        self._offsets = {}
-    
-    def _log(self, msg: str):
-        if self._verbose:
-            print(f"[TestController] {msg}")
-    
-    def connect(self) -> bool:
-        self._connected = True
-        self._log("Connected")
-        return True
-    
-    def disconnect(self):
-        self._connected = False
-        self._log("Disconnected")
-    
-    def write_offset(self, tool: int, axis: str, value: float) -> bool:
-        key = (tool, axis)
-        current = self._offsets.get(key, 0)
-        self._offsets[key] = current + value
-        self._log(f"OFFSET T{tool}: {value:+.6f} mm")
-        return True
-    
-    def read_offset(self, tool: int, axis: str) -> Optional[float]:
-        return self._offsets.get((tool, axis), 0)
-    
-    def send_alarm(self, message: str) -> bool:
-        self._log(f"ALARM: {message}")
-        return True
-    
-    def send_warning(self, message: str) -> bool:
-        self._log(f"WARNING: {message}")
-        return True
-    
-    def request_tool_change(self, tool: int) -> bool:
-        self._log(f"TOOL CHANGE REQUEST: T{tool}")
-        return True
-    
-    def get_status(self) -> ControllerStatus:
-        return ControllerStatus(
-            connected=self._connected,
-            state=MachineState.RUNNING if self._connected else MachineState.DISCONNECTED,
-        )
-
-
-# =============================================================================
 # FANUC FOCAS2 DRIVER (Stub)
 # =============================================================================
 

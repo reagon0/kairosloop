@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'measurement',   # Measurement configuration UI
     'compensation',  # Compensation configuration UI
     'controller',    # Controller configuration UI
+    'simulator'
 ]
 
 MIDDLEWARE = [

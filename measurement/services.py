@@ -13,10 +13,9 @@ from enum import Enum
 
 from django.utils import timezone
 
-from .n1700 import N1700, N1700Exception, FilterLevel
-from .models import GaugeConfig, ChannelConfig, Feature, Measurement
-from controller.drivers import BaseController, TestController, ControllerState
-from controller.models import ControllerConfig
+from .n1700 import N1700, N1700Exception
+from .models import Feature, Measurement
+from controller.drivers import BaseController, TestPLCDriver, MachineState
 
 
 class ServiceState(Enum):
@@ -550,8 +549,13 @@ def stop_service():
 # =============================================================================
 
 def create_test_service() -> GaugeService:
-    """Create a service with TestController for development."""
+    """Create a service with TestPLCDriver for development."""
+    from simulator.plc import get_test_plc
+    
     service = GaugeService()
-    service.add_controller("test", TestController())
+    plc = get_test_plc()
+    driver = TestPLCDriver(plc=plc, verbose=True)
+    driver.set_plc(plc)
+    service.add_controller("test", driver)
     service.connect_controller("test")
     return service

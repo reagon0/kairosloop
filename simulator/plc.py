@@ -1,4 +1,4 @@
-# controller/test_plc.py
+# simulator/plc.py
 """
 Simulated PLC/CNC for testing.
 
@@ -8,6 +8,7 @@ This simulates the behavior of a real CNC machine:
 - Counts parts
 - Responds to signals from KairosLoop
 - Sends signals back (CYCLE_COMPLETE, etc.)
+- Triggers measurement after each cycle (when simulation enabled)
 """
 
 import time
@@ -18,7 +19,7 @@ from datetime import datetime
 
 from django.utils import timezone
 
-from .drivers import MachineState, Signal
+from controller.drivers import MachineState, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,10 @@ class TestPLC:
         
         # WebSocket broadcast callback
         self._on_state_change: Optional[Callable] = None
+        
+        # Simulation mode - auto-measure after each cycle
+        self._simulation_enabled = False
+        self._tool_wear_sim = None
     
     # =========================================================================
     # PROPERTIES
@@ -91,6 +96,36 @@ class TestPLC:
     @property
     def is_running(self) -> bool:
         return self._state == MachineState.RUNNING
+    
+    @property
+    def simulation_enabled(self) -> bool:
+        return self._simulation_enabled
+    
+    # =========================================================================
+    # SIMULATION CONTROL
+    # =========================================================================
+    
+    def enable_simulation(self, tool_wear_sim: 'ToolWearSimulation' = None):
+        """
+        Enable full simulation mode.
+        
+        When enabled, each CYCLE_COMPLETE will:
+        1. Apply tool wear
+        2. Simulate gauge readings
+        3. Call capture_measurement()
+        """
+        if tool_wear_sim is None:
+            from simulator.tool_wear import get_tool_wear_simulation
+            tool_wear_sim = get_tool_wear_simulation()
+        
+        self._tool_wear_sim = tool_wear_sim
+        self._simulation_enabled = True
+        logger.info("[TestPLC] Simulation mode ENABLED")
+    
+    def disable_simulation(self):
+        """Disable simulation mode."""
+        self._simulation_enabled = False
+        logger.info("[TestPLC] Simulation mode DISABLED")
     
     # =========================================================================
     # RECEIVE COMMANDS FROM DRIVER (KairosLoop → PLC)
@@ -197,16 +232,20 @@ class TestPLC:
         self._broadcast_state()
     
     def operator_change_tool(self, tool: int):
-        """Operator changes a tool (resets wear)."""
-        # Reset offset and wear for this tool
+        """Operator changes a tool (resets wear and offsets)."""
+        # Reset offset for this tool
         self._tool_offsets[tool] = {'X': 0.0, 'Y': 0.0, 'Z': 0.0}
         self._tool_wear[tool] = 0.0
+        
+        # Reset simulated wear too
+        if self._tool_wear_sim:
+            self._tool_wear_sim.reset_tool(tool)
         
         # Return to IDLE if in TOOL_CHANGE state
         if self._state == MachineState.TOOL_CHANGE:
             self._state = MachineState.IDLE
         
-        logger.info(f"[TestPLC] Tool T{tool} CHANGED - wear reset")
+        logger.info(f"[TestPLC] Tool T{tool} CHANGED - offsets and wear reset")
         self._broadcast_state()
         self._emit_signal(Signal.TOOL_CHANGED, {'tool': tool})
     
@@ -242,6 +281,37 @@ class TestPLC:
             self._emit_signal(Signal.CYCLE_COMPLETE, {
                 'part_count': self._part_count_today,
             })
+            
+            # If simulation enabled, measure the "part"
+            if self._simulation_enabled:
+                self._simulate_measurement()
+    
+    def _simulate_measurement(self):
+        """Simulate gauge measurement after cycle complete."""
+        try:
+            from simulator.gauge import simulate_gauge_readings
+            from measurement.capture import capture_measurement
+            
+            # Apply tool wear for this cycle
+            if self._tool_wear_sim:
+                self._tool_wear_sim.cycle_all()
+            
+            # Get simulated gauge readings
+            readings = simulate_gauge_readings(self, self._tool_wear_sim)
+            
+            # Feed to KairosLoop
+            result = capture_measurement(
+                channel_values=readings,
+                source='simulator'
+            )
+            
+            logger.info(
+                f"[TestPLC] Simulated measurement: "
+                f"pass={result.all_pass}, features={len(result.feature_results)}"
+            )
+            
+        except Exception as e:
+            logger.exception("[TestPLC] Error in simulated measurement")
     
     def start(self):
         """Start auto-cycle thread."""
@@ -275,7 +345,7 @@ class TestPLC:
     
     def get_state(self) -> dict:
         """Get current state for dashboard."""
-        return {
+        state = {
             'state': self._state.value,
             'alarm_active': self._alarm_active,
             'alarm_message': self._alarm_message,
@@ -287,7 +357,14 @@ class TestPLC:
             'cycle_time': self.cycle_time,
             'tool_offsets': self._tool_offsets.copy(),
             'tool_wear': self._tool_wear.copy(),
+            'simulation_enabled': self._simulation_enabled,
         }
+        
+        # Include simulated wear if available
+        if self._tool_wear_sim:
+            state['simulated_wear'] = self._tool_wear_sim.get_state()
+        
+        return state
     
     # =========================================================================
     # SIGNAL HANDLING
@@ -349,3 +426,27 @@ def stop_test_plc():
     global _test_plc
     if _test_plc:
         _test_plc.stop()
+
+
+def start_simulation(cycle_time: float = 3.0) -> TestPLC:
+    """
+    Start the full simulation loop.
+    
+    Convenience function that:
+    1. Gets/creates TestPLC
+    2. Enables simulation mode (with tool wear)
+    3. Starts the cycle thread
+    
+    Usage:
+        plc = start_simulation(cycle_time=3.0)
+        plc.operator_start()  # Begin running
+    """
+    global _test_plc
+    
+    if _test_plc is None:
+        _test_plc = TestPLC(cycle_time=cycle_time)
+    
+    _test_plc.enable_simulation()
+    _test_plc.start()
+    
+    return _test_plc
