@@ -378,9 +378,8 @@ class CaptureService:
             from compensation.models import CompensationRule, CompensationEvent
             
             for result in results:
-                # Only compensate if out of tolerance or in warning
-                if result.status not in ('ALARM', 'WARN'):
-                    continue
+                # Let the compensation rule decide based on its own threshold.
+                # Don't pre-filter by tolerance status.
                 
                 # Get active compensation rules for this feature
                 rules = CompensationRule.objects.filter(
@@ -451,20 +450,15 @@ class CaptureService:
             logger.exception("Error in compensation trigger")
     
     def _check_alarms(self, results: List[FeatureResult]):
-        """Send alarm to controller if any feature is in ALARM status."""
+        """Only alarm when compensation can't recover — not on single bad parts."""
+        # Log out-of-tolerance parts but don't stop the machine.
+        # The machine only stops when:
+        #   - Wear limit is reached (handled in _trigger_compensation)
+        #   - Compensation repeatedly fails (future: consecutive fail counter)
         alarm_features = [r for r in results if r.status == 'ALARM']
-        
         if alarm_features:
-            # Build alarm message
-            messages = [
-                f"{r.feature_name}: {r.deviation:+.4f}"
-                for r in alarm_features
-            ]
-            alarm_message = "Out of tolerance - " + ", ".join(messages)
-            
-            # Send alarm to controller
-            self.driver.send_alarm(alarm_message)
-            logger.warning(f"ALARM sent to controller: {alarm_message}")
+            messages = [f"{r.feature_name}: {r.deviation:+.4f}" for r in alarm_features]
+            logger.warning(f"Out of tolerance (compensating): {', '.join(messages)}")
     
     def _send_offset(self, rule, offset: float) -> bool:
         """Send offset to controller via driver."""

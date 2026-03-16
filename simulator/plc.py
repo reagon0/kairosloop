@@ -355,8 +355,8 @@ class TestPLC:
             'part_count_total': self._part_count_total,
             'cycle_active': self._cycle_active,
             'cycle_time': self.cycle_time,
-            'tool_offsets': self._tool_offsets.copy(),
-            'tool_wear': self._tool_wear.copy(),
+            'tool_offsets': {str(k): v for k, v in self._tool_offsets.items()},
+            'tool_wear': {str(k): v for k, v in self._tool_wear.items()},
             'simulation_enabled': self._simulation_enabled,
         }
         

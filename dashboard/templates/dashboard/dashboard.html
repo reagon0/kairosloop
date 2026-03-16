@@ -16,230 +16,103 @@
 {% block extra_styles %}
 <style>
     /* ============================================
-       LAYOUT
+       DASHBOARD LAYOUT
+       One screen, no scrolling, no collapsible panels.
        ============================================ */
-    .dashboard-container {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 16px;
+    .dashboard {
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        gap: 12px;
+        padding: 12px 16px;
         max-width: 1600px;
         margin: 0 auto;
-    }
-    
-    /* ============================================
-       PANELS
-       ============================================ */
-    .panel {
-        background: var(--bg-card);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px;
+        height: calc(100vh - 56px);
         overflow: hidden;
     }
-    
-    .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: var(--bg-panel);
-        border-bottom: 1px solid var(--border-dark);
-        cursor: pointer;
-        user-select: none;
-    }
-    
-    .panel-header:hover {
-        background: var(--bg-hover);
-    }
-    
-    .panel-title {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--text-secondary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .panel-title-icon {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--green);
-    }
-    
-    .panel-toggle {
-        font-size: 12px;
-        color: var(--text-dim);
-        transition: transform 0.2s;
-    }
-    
-    .panel.collapsed .panel-toggle {
-        transform: rotate(-90deg);
-    }
-    
-    .panel.collapsed .panel-content {
-        display: none;
-    }
-    
-    .panel-content {
-        padding: 16px;
-    }
 
     /* ============================================
-       SIMULATION PANEL
+       PLC CONTROL STRIP
+       Compact bar with machine state + operator buttons.
        ============================================ */
-    .tool-wear-card {
+    .plc-strip {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 16px;
         background: var(--bg-panel);
         border: 1px solid var(--border-dark);
         border-radius: 4px;
-        padding: 16px;
-    }
-    
-    .tool-wear-card.worn {
-        border-color: var(--yellow);
-    }
-    
-    .tool-wear-card.critical {
-        border-color: var(--red);
-    }
-    
-    #simulation-panel.running .panel-title-icon {
-        background: var(--green);
-        animation: pulse 1s infinite;
-    }
-    
-    #simulation-panel.stopped .panel-title-icon {
-        background: var(--text-dim);
-    }
-    
-    input[type="range"] {
-        -webkit-appearance: none;
-        background: var(--bg-recessed);
-        border-radius: 4px;
-        height: 6px;
-    }
-    
-    input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 14px;
-        height: 14px;
-        background: var(--green);
-        border-radius: 50%;
-        cursor: pointer;
-    }
-    
-    input[type="range"]::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        background: var(--green);
-        border-radius: 50%;
-        cursor: pointer;
-        border: none;
     }
 
-    /* ============================================
-       MACHINE PANEL
-       ============================================ */
-    .machine-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto;
-        gap: 16px;
-        align-items: center;
-    }
-    
-    .machine-status-card {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .machine-state {
+    .plc-state {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 24px;
+        font-size: 14px;
         font-weight: 700;
-        color: var(--text-dim);
         text-transform: uppercase;
+        color: var(--text-dim);
+        min-width: 100px;
     }
-    
-    .machine-state.idle { color: var(--text-secondary); }
-    .machine-state.running { color: var(--green); }
-    .machine-state.alarm { color: var(--red); animation: pulse 1s infinite; }
-    .machine-state.tool_change { color: var(--yellow); }
-    
-    .machine-alarm {
+
+    .plc-state.idle { color: var(--text-secondary); }
+    .plc-state.running { color: var(--green); }
+    .plc-state.alarm { color: var(--red); animation: pulse 1s infinite; }
+    .plc-state.tool_change { color: var(--yellow); }
+
+    .plc-alarm-msg {
         font-size: 12px;
         color: var(--red);
-        padding: 8px 12px;
-        background: rgba(255, 68, 68, 0.1);
+        padding: 4px 10px;
+        background: rgba(255, 51, 51, 0.1);
         border: 1px solid var(--red);
-        border-radius: 4px;
+        border-radius: 3px;
     }
-    
-    .machine-stats {
+
+    .plc-buttons {
         display: flex;
-        gap: 24px;
+        gap: 6px;
+        margin-left: auto;
     }
-    
-    .machine-stat {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .machine-stat-label {
-        font-size: 10px;
-        color: var(--text-dim);
-        text-transform: uppercase;
-    }
-    
-    .machine-stat-value {
+
+    .plc-btn {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--text-primary);
+        font-size: 10px;
+        padding: 6px 12px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        color: var(--text-secondary);
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        border-radius: 3px;
+        transition: all 0.15s;
     }
-    
-    .machine-actions {
-        display: flex;
-        gap: 8px;
+
+    .plc-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
+    .plc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .plc-btn.start { border-color: var(--green); color: var(--green); }
+    .plc-btn.start:hover:not(:disabled) { background: var(--green); color: #000; }
+    .plc-btn.stop { border-color: var(--red); color: var(--red); }
+    .plc-btn.stop:hover:not(:disabled) { background: var(--red); color: #000; }
+    .plc-btn.ack { border-color: var(--yellow); color: var(--yellow); opacity: 0.3; pointer-events: none; }
+    .plc-btn.ack.active { opacity: 1; pointer-events: auto; }
+    .plc-btn.ack.active:hover { background: var(--yellow); color: #000; }
+
+    .plc-part-count {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--text-dim);
+        padding: 0 12px;
+        border-left: 1px solid var(--border-dark);
     }
-    
-    .machine-btn {
-        padding: 8px 16px;
+
+    .plc-part-count strong {
+        color: var(--text-secondary);
+        font-size: 16px;
     }
-    
-    .machine-btn#btnMachineStart {
-        border-color: var(--green);
-        color: var(--green);
-    }
-    
-    .machine-btn#btnMachineStart:hover {
-        background: var(--green);
-        color: #000;
-    }
-    
-    .machine-btn#btnMachineStop {
-        border-color: var(--red);
-        color: var(--red);
-    }
-    
-    .machine-btn#btnMachineStop:hover {
-        background: var(--red);
-        color: #000;
-    }
-    
-    .machine-btn#btnMachineAck {
-        border-color: var(--yellow);
-        color: var(--yellow);
-    }
-    
-    .machine-btn#btnMachineAck:hover {
-        background: var(--yellow);
-        color: #000;
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
     }
 
     /* ============================================
@@ -248,965 +121,525 @@
     .stats-bar {
         display: flex;
         gap: 24px;
-        padding: 12px 16px;
+        padding: 8px 16px;
         background: var(--bg-panel);
         border: 1px solid var(--border-dark);
         border-radius: 4px;
-        margin-bottom: 8px;
     }
-    
+
     .stat-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
     }
-    
+
     .stat-label {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--text-dim);
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    
+
     .stat-value {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         color: var(--text-primary);
     }
-    
+
     .stat-value.pass { color: var(--green); }
     .stat-value.warn { color: var(--yellow); }
     .stat-value.fail { color: var(--red); }
 
     /* ============================================
-       BUTTONS
+       MAIN CONTENT AREA
+       Two columns: left (chart + features), right (sidebar)
        ============================================ */
-    .btn {
-        padding: 10px 16px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border: 1px solid var(--border-light);
-        background: var(--bg-card);
-        color: var(--text-secondary);
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.15s;
-    }
-    
-    .btn:hover {
-        border-color: var(--text-secondary);
-        color: var(--text-primary);
-    }
-    
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    .btn.primary, .btn-primary {
-        border-color: var(--green);
-        color: var(--green);
-    }
-    
-    .btn.primary:hover, .btn-primary:hover:not(:disabled) {
-        background: var(--green);
-        color: #000;
-    }
-    
-    .btn-secondary {
-        border-color: var(--border-light);
-        color: var(--text-secondary);
-    }
-    
-    .btn-small {
-        padding: 4px 8px;
-        font-size: 10px;
-    }
-    
-    /* ============================================
-       LIVE SECTION
-       ============================================ */
-    .live-grid {
+    .main-area {
         display: grid;
         grid-template-columns: 1fr 280px;
-        gap: 16px;
-    }
-    
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 12px;
+        min-height: 0;
+        overflow: hidden;
     }
-    
-    .feature-card {
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px;
-        padding: 16px;
+
+    .main-left {
         display: flex;
         flex-direction: column;
         gap: 12px;
+        min-height: 0;
+        overflow: hidden;
     }
-    
+
+    /* ============================================
+       TREND CHART (hero)
+       ============================================ */
+    .trend-panel {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 12px 16px;
+        flex: 1;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .trend-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .trend-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .trend-select {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        padding: 4px 8px;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        color: var(--text-secondary);
+        border-radius: 3px;
+    }
+
+    .trend-chart-wrap {
+        flex: 1;
+        position: relative;
+        min-height: 0;
+    }
+
+    .trend-chart-wrap canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* ============================================
+       FEATURE CARDS
+       ============================================ */
+    .features-row {
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .feature-card {
+        flex: 1;
+        min-width: 200px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 12px 14px;
+        transition: border-color 0.3s;
+    }
+
     .feature-card.warn { border-color: var(--yellow); }
     .feature-card.alarm { border-color: var(--red); }
-    
+
     .feature-header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
+        margin-bottom: 8px;
     }
-    
+
     .feature-name {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--text-primary);
     }
-    
+
     .feature-type {
-        font-size: 10px;
+        font-size: 9px;
         color: var(--text-dim);
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    
-    .feature-status {
-        width: 12px;
-        height: 12px;
+
+    .feature-status-dot {
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: var(--text-dim);
         flex-shrink: 0;
     }
-    
-    .feature-status.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
-    .feature-status.warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
-    .feature-status.alarm { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1s infinite; }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-    
-    .feature-value-row {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-    }
-    
+
+    .feature-status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .feature-status-dot.warn { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .feature-status-dot.alarm { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1s infinite; }
+
     .feature-value {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 32px;
+        font-size: 26px;
         font-weight: 600;
         color: var(--text-primary);
         line-height: 1;
+        margin-bottom: 4px;
     }
-    
+
     .feature-value.ok { color: var(--green); }
     .feature-value.warn { color: var(--yellow); }
     .feature-value.alarm { color: var(--red); }
-    
-    .feature-unit {
-        font-size: 14px;
+
+    .feature-meta {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
         color: var(--text-dim);
     }
-    
+
+    .feature-meta span { margin-right: 12px; }
+
     .feature-deviation {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 12px;
         color: var(--text-secondary);
     }
-    
-    .feature-sparkline {
-        height: 32px;
-        display: flex;
-        align-items: flex-end;
-        gap: 2px;
-        padding: 4px 0;
-    }
-    
-    .sparkline-bar {
-        flex: 1;
-        min-width: 4px;
-        max-width: 12px;
-        background: var(--green);
-        border-radius: 1px;
-        transition: height 0.2s;
-    }
-    
-    .sparkline-bar.warn { background: var(--yellow); }
-    .sparkline-bar.alarm { background: var(--red); }
-    
-    .feature-tolerance {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .tolerance-bar {
-        flex: 1;
-        height: 6px;
-        background: var(--bg-recessed);
-        border-radius: 3px;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .tolerance-fill {
-        position: absolute;
-        height: 100%;
-        background: var(--green);
-        border-radius: 3px;
-        transition: all 0.3s;
-    }
-    
-    .tolerance-fill.warn { background: var(--yellow); }
-    .tolerance-fill.alarm { background: var(--red); }
-    
-    .tolerance-marker {
-        position: absolute;
-        width: 2px;
-        height: 100%;
-        background: var(--text-primary);
-        left: 50%;
-        transform: translateX(-50%);
-    }
-    
-    .tolerance-limits {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
-        color: var(--text-dim);
-        white-space: nowrap;
-    }
-    
-    /* Channels sidebar */
-    .channels-panel {
+
+    /* ============================================
+       SIDEBAR (channels + tool wear + events)
+       ============================================ */
+    .sidebar {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
+        min-height: 0;
+        overflow-y: auto;
     }
-    
-    .channels-title {
-        font-size: 11px;
+
+    .sidebar-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 10px 12px;
+    }
+
+    .sidebar-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
         font-weight: 600;
         color: var(--text-dim);
         text-transform: uppercase;
-        margin-bottom: 4px;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
     }
-    
+
+    /* Channels */
     .channel-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px 12px;
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--border-dark);
     }
-    
+
+    .channel-row:last-child { border-bottom: none; }
+
     .channel-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .channel-index {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
+        font-size: 11px;
         color: var(--text-dim);
     }
-    
-    .channel-name {
-        font-size: 12px;
-        color: var(--text-secondary);
-    }
-    
-    .channel-value {
+
+    .channel-idx {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 14px;
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin-right: 6px;
+    }
+
+    .channel-val {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
         font-weight: 600;
         color: var(--blue);
     }
-    
-    .actions-row {
+
+    /* Actions */
+    .sidebar-actions {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         margin-top: 8px;
-    }
-    
-    .actions-row .btn {
-        flex: 1;
     }
 
-    /* ============================================
-       COMPENSATION SECTION
-       ============================================ */
-    .compensation-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-    
-    .tool-card {
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px;
-        padding: 16px;
-    }
-    
-    .tool-card.warning { border-color: var(--yellow); }
-    .tool-card.critical { border-color: var(--red); }
-    
-    .tool-header {
+    .sidebar-actions .plc-btn { flex: 1; text-align: center; }
+
+    /* Tool wear */
+    .wear-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-dark);
     }
-    
-    .tool-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .tool-id {
+
+    .wear-row:last-child { border-bottom: none; }
+
+    .wear-tool-id {
         font-family: 'JetBrains Mono', monospace;
         font-size: 11px;
-        color: var(--text-dim);
-        background: var(--bg-recessed);
-        padding: 2px 6px;
-        border-radius: 3px;
-    }
-    
-    .tool-wear-visual {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-    
-    .wear-gauge {
-        width: 60px;
-        height: 60px;
-        position: relative;
-    }
-    
-    .wear-gauge svg {
-        transform: rotate(-90deg);
-    }
-    
-    .wear-gauge-bg {
-        fill: none;
-        stroke: var(--bg-recessed);
-        stroke-width: 6;
-    }
-    
-    .wear-gauge-fill {
-        fill: none;
-        stroke: var(--green);
-        stroke-width: 6;
-        stroke-linecap: round;
-        transition: stroke-dashoffset 0.5s;
-    }
-    
-    .wear-gauge-fill.warning { stroke: var(--yellow); }
-    .wear-gauge-fill.critical { stroke: var(--red); }
-    
-    .wear-gauge-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 14px;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--text-secondary);
+        min-width: 30px;
     }
-    
-    .tool-details {
+
+    .wear-bar-wrap {
         flex: 1;
+        height: 6px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+        overflow: hidden;
     }
-    
-    .tool-stat {
-        display: flex;
-        justify-content: space-between;
-        font-size: 11px;
-        margin-bottom: 4px;
+
+    .wear-bar-fill {
+        height: 100%;
+        background: var(--green);
+        border-radius: 3px;
+        transition: width 0.4s, background 0.4s;
     }
-    
-    .tool-stat-label { color: var(--text-dim); }
-    .tool-stat-value {
+
+    .wear-bar-fill.warning { background: var(--yellow); }
+    .wear-bar-fill.critical { background: var(--red); }
+
+    .wear-pct {
         font-family: 'JetBrains Mono', monospace;
-        color: var(--text-secondary);
-    }
-    
-    .tool-last-adj {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--text-dim);
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--border-dark);
+        min-width: 32px;
+        text-align: right;
     }
-    
-    .tool-last-adj strong {
-        color: var(--text-secondary);
+
+    .wear-value {
         font-family: 'JetBrains Mono', monospace;
-    }
-    
-    /* Events feed */
-    .events-section {
-        border-top: 1px solid var(--border-dark);
-        padding-top: 16px;
-    }
-    
-    .events-title {
-        font-size: 11px;
-        font-weight: 600;
+        font-size: 10px;
         color: var(--text-dim);
-        text-transform: uppercase;
-        margin-bottom: 8px;
+        min-width: 50px;
+        text-align: right;
     }
-    
-    .events-feed {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 150px;
-        overflow-y: auto;
-    }
-    
+
+    /* Events */
     .event-row {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 8px 12px;
-        background: var(--bg-panel);
-        border-radius: 4px;
-        font-size: 12px;
+        gap: 8px;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border-dark);
+        font-size: 11px;
     }
-    
+
+    .event-row:last-child { border-bottom: none; }
+
     .event-time {
         font-family: 'JetBrains Mono', monospace;
         font-size: 10px;
         color: var(--text-dim);
-        min-width: 60px;
+        min-width: 50px;
     }
-    
+
     .event-tool {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
+        font-size: 10px;
         color: var(--text-secondary);
         background: var(--bg-recessed);
-        padding: 2px 6px;
-        border-radius: 3px;
+        padding: 1px 4px;
+        border-radius: 2px;
     }
-    
-    .event-feature {
-        flex: 1;
-        color: var(--text-secondary);
-    }
-    
+
     .event-offset {
         font-family: 'JetBrains Mono', monospace;
         font-weight: 600;
+        margin-left: auto;
     }
-    
+
     .event-offset.positive { color: var(--red); }
     .event-offset.negative { color: var(--green); }
-    
-    .event-status {
-        font-size: 10px;
-        padding: 2px 6px;
-        border-radius: 3px;
+
+    .event-status-badge {
+        font-size: 9px;
+        padding: 1px 4px;
+        border-radius: 2px;
         text-transform: uppercase;
     }
-    
-    .event-status.applied { background: rgba(0, 255, 136, 0.2); color: var(--green); }
-    .event-status.clamped { background: rgba(255, 204, 0, 0.2); color: var(--yellow); }
-    .event-status.error { background: rgba(255, 68, 68, 0.2); color: var(--red); }
+
+    .event-status-badge.applied { background: rgba(0, 255, 136, 0.15); color: var(--green); }
+    .event-status-badge.skipped { background: rgba(136, 136, 136, 0.15); color: var(--text-dim); }
+    .event-status-badge.clamped { background: rgba(255, 204, 0, 0.15); color: var(--yellow); }
+    .event-status-badge.error { background: rgba(255, 51, 51, 0.15); color: var(--red); }
 
     /* ============================================
-       HISTORY SECTION
+       BOTTOM BAR
        ============================================ */
-    .history-grid {
-        display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 16px;
-    }
-    
-    .trend-chart-container {
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px;
-        padding: 16px;
-        height: 200px;
-    }
-    
-    .history-stats {
+    .bottom-bar {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-    
-    .history-stat-card {
+        align-items: center;
+        gap: 16px;
+        padding: 6px 16px;
         background: var(--bg-panel);
         border: 1px solid var(--border-dark);
         border-radius: 4px;
-        padding: 16px;
-        text-align: center;
-    }
-    
-    .history-stat-value {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 28px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    
-    .history-stat-value.pass { color: var(--green); }
-    .history-stat-value.warn { color: var(--yellow); }
-    .history-stat-value.fail { color: var(--red); }
-    
-    .history-stat-label {
-        font-size: 11px;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        margin-top: 4px;
-    }
-    
-    .history-table { margin-top: 16px; }
-    
-    .history-table-header {
-        display: grid;
-        grid-template-columns: 70px 1fr 90px 90px 80px;
-        gap: 8px;
-        padding: 8px 12px;
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
-        border-radius: 4px 4px 0 0;
         font-size: 10px;
-        font-weight: 600;
         color: var(--text-dim);
-        text-transform: uppercase;
     }
-    
-    .history-table-body {
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid var(--border-dark);
-        border-top: none;
-        border-radius: 0 0 4px 4px;
-    }
-    
-    .history-table-row {
-        display: grid;
-        grid-template-columns: 70px 1fr 90px 90px 80px;
-        gap: 8px;
-        padding: 8px 12px;
-        border-bottom: 1px solid var(--border-dark);
-        font-size: 12px;
-    }
-    
-    .history-table-row:last-child { border-bottom: none; }
-    .history-table-row:hover { background: var(--bg-hover); }
+
+    .bottom-bar span { letter-spacing: 0.3px; }
 
     /* ============================================
-       EMPTY STATES
+       EMPTY STATE
        ============================================ */
     .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 32px;
-        color: var(--text-dim);
         text-align: center;
+        padding: 20px;
+        color: var(--text-dim);
+        font-size: 12px;
     }
-    
+
     .empty-state a {
         color: var(--blue);
         text-decoration: none;
-        margin-top: 8px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    
-    <!-- ═══════════════════════════════════════════════════════════════════════════
-         SIMULATION PANEL
-         ═══════════════════════════════════════════════════════════════════════════ -->
-    <div class="panel stopped" id="simulation-panel">
-        <div class="panel-header" onclick="togglePanel('simulation-panel')">
-            <div class="panel-title">
-                <div class="panel-title-icon"></div>
-                Simulation
-            </div>
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <span id="sim-status-text" style="font-size: 11px; color: var(--text-dim);">STOPPED</span>
-                <span class="panel-toggle">▼</span>
-            </div>
+<div class="dashboard">
+
+    <!-- ═══════════ PLC CONTROL STRIP ═══════════ -->
+    <div class="plc-strip">
+        <div class="plc-state" id="plcState">IDLE</div>
+        <div class="plc-alarm-msg" id="plcAlarm" style="display:none;"></div>
+
+        <div class="plc-part-count">
+            Parts: <strong id="plcPartCount">0</strong>
         </div>
-        <div class="panel-content">
-            <!-- Controls row -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-dark);">
-                <div style="display: flex; gap: 24px; align-items: center;">
-                    <div>
-                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Cycle Time</div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="range" id="cycle-time-slider" min="1" max="10" step="0.5" value="3" style="width: 100px;" onchange="setCycleTime(this.value)">
-                            <span id="cycle-time-value" style="font-family: 'JetBrains Mono'; font-size: 14px;">3.0s</span>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Total Cycles</div>
-                        <div id="sim-total-cycles" style="font-family: 'JetBrains Mono'; font-size: 20px; font-weight: 600;">0</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" id="sim-start-btn" onclick="startSimulation()">▶ Start</button>
-                    <button class="btn btn-secondary" id="sim-stop-btn" onclick="stopSimulation()" disabled>⏹ Stop</button>
-                    <button class="btn btn-secondary" onclick="resetSimulation()">↺ Reset</button>
-                </div>
-            </div>
-            
-            <!-- Tool wear cards -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
-                <!-- Tool 1 -->
-                <div class="tool-wear-card" id="tool-1-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <div>
-                            <span style="font-weight: 600;">T1</span>
-                            <span style="color: var(--text-dim); font-size: 12px; margin-left: 8px;">OD Roughing</span>
-                        </div>
-                        <span id="tool-1-cycles" style="font-size: 11px; color: var(--text-dim);">0 cycles</span>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-                            <span style="color: var(--text-dim);">WEAR</span>
-                            <span id="tool-1-wear-value" style="font-family: 'JetBrains Mono';">0.0000</span>
-                        </div>
-                        <div style="background: var(--bg-recessed); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div id="tool-1-wear-bar" style="height: 100%; width: 0%; background: var(--green); transition: width 0.3s, background 0.3s;"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 2px;">
-                            <span>0%</span>
-                            <span id="tool-1-wear-pct">0%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Wear Rate</div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="range" id="tool-1-rate-slider" min="0.0001" max="0.002" step="0.0001" value="0.0005" style="width: 100px;" onchange="setWearRate(1, this.value)">
-                            <span id="tool-1-rate-value" style="font-family: 'JetBrains Mono'; font-size: 12px;">0.0005</span>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-small btn-secondary" onclick="induceWear(1, 0.01)">+0.010</button>
-                        <button class="btn btn-small btn-secondary" onclick="induceWear(1, 0.02)">+0.020</button>
-                        <button class="btn btn-small" onclick="changeTool(1)" style="margin-left: auto;">🔧 Change</button>
-                    </div>
-                </div>
-                
-                <!-- Tool 2 -->
-                <div class="tool-wear-card" id="tool-2-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <div>
-                            <span style="font-weight: 600;">T2</span>
-                            <span style="color: var(--text-dim); font-size: 12px; margin-left: 8px;">Face/Length</span>
-                        </div>
-                        <span id="tool-2-cycles" style="font-size: 11px; color: var(--text-dim);">0 cycles</span>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-                            <span style="color: var(--text-dim);">WEAR</span>
-                            <span id="tool-2-wear-value" style="font-family: 'JetBrains Mono';">0.0000</span>
-                        </div>
-                        <div style="background: var(--bg-recessed); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div id="tool-2-wear-bar" style="height: 100%; width: 0%; background: var(--green); transition: width 0.3s, background 0.3s;"></div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 2px;">
-                            <span>0%</span>
-                            <span id="tool-2-wear-pct">0%</span>
-                            <span>100%</span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px;">Wear Rate</div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="range" id="tool-2-rate-slider" min="0.0001" max="0.002" step="0.0001" value="0.0003" style="width: 100px;" onchange="setWearRate(2, this.value)">
-                            <span id="tool-2-rate-value" style="font-family: 'JetBrains Mono'; font-size: 12px;">0.0003</span>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-small btn-secondary" onclick="induceWear(2, 0.01)">+0.010</button>
-                        <button class="btn btn-small btn-secondary" onclick="induceWear(2, 0.02)">+0.020</button>
-                        <button class="btn btn-small" onclick="changeTool(2)" style="margin-left: auto;">🔧 Change</button>
-                    </div>
-                </div>
-            </div>
+
+        <div class="plc-buttons">
+            <button class="plc-btn start" id="btnStart" onclick="cmdStart()">Start</button>
+            <button class="plc-btn stop" id="btnStop" onclick="cmdStop()">Stop</button>
+            <button class="plc-btn" id="btnToolChanged" onclick="cmdToolChanged()">Tool Changed</button>
+            <button class="plc-btn" id="btnCapture" onclick="cmdCapture()">Capture</button>
+            <button class="plc-btn" id="btnMaster" onclick="cmdMaster()">Master</button>
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════════
-         MACHINE PANEL
-         ═══════════════════════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelMachine">
-        <div class="panel-header" onclick="togglePanel('panelMachine')">
-            <div class="panel-title">
-                <div class="panel-title-icon" id="machineStateIcon" style="background: var(--text-dim);"></div>
-                Machine
-            </div>
-            <span class="panel-toggle">▼</span>
-        </div>
-        <div class="panel-content">
-            <div class="machine-grid">
-                <div class="machine-status-card">
-                    <div class="machine-state" id="machineState">DISCONNECTED</div>
-                    <div class="machine-alarm" id="machineAlarm" style="display: none;"></div>
-                </div>
-                <div class="machine-stats">
-                    <div class="machine-stat">
-                        <span class="machine-stat-label">Parts Today</span>
-                        <span class="machine-stat-value" id="machinePartCount">0</span>
-                    </div>
-                    <div class="machine-stat">
-                        <span class="machine-stat-label">Cycle Time</span>
-                        <span class="machine-stat-value" id="machineCycleTime">—</span>
-                    </div>
-                </div>
-                <div class="machine-actions">
-                    <button class="btn machine-btn" id="btnMachineStart">Start</button>
-                    <button class="btn machine-btn" id="btnMachineStop">Stop</button>
-                    <button class="btn machine-btn" id="btnMachineAck" style="display: none;">Ack Alarm</button>
-                    <button class="btn machine-btn" id="btnMachineReset">Reset Count</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- ═══════════ MAIN AREA ═══════════ -->
+    <div class="main-area">
+        <div class="main-left">
 
-    <!-- STATS BAR -->
-    <div class="stats-bar">
-        <div class="stat-item">
-            <span class="stat-label">Today</span>
-            <span class="stat-value" id="statTotal">{{ stats.total_today }}</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Pass</span>
-            <span class="stat-value pass" id="statPass">{{ stats.pass_today }}</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Warn</span>
-            <span class="stat-value warn" id="statWarn">{{ stats.warn_today }}</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Fail</span>
-            <span class="stat-value fail" id="statFail">{{ stats.fail_today }}</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Pass Rate</span>
-            <span class="stat-value" id="statRate">{{ stats.pass_rate }}%</span>
-        </div>
-    </div>
-    
-    <!-- ═══════════════════════════════════════════════════════════════════════════
-         LIVE PANEL
-         ═══════════════════════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelLive">
-        <div class="panel-header" onclick="togglePanel('panelLive')">
-            <div class="panel-title">
-                <div class="panel-title-icon"></div>
-                Live
-            </div>
-            <span class="panel-toggle">▼</span>
-        </div>
-        <div class="panel-content">
-            <div class="live-grid">
-                <div class="features-grid" id="featuresGrid">
-                    {% for feature in features %}
-                    <div class="feature-card" id="feature-card-{{ feature.id }}" data-feature-id="{{ feature.id }}">
-                        <div class="feature-header">
-                            <div>
-                                <div class="feature-name">{{ feature.name }}</div>
-                                <div class="feature-type">{{ feature.get_feature_type_display }}</div>
-                            </div>
-                            <div class="feature-status" id="status-{{ feature.id }}"></div>
-                        </div>
-                        <div class="feature-value-row">
-                            <span class="feature-value" id="value-{{ feature.id }}">—</span>
-                            <span class="feature-unit">{{ feature.unit }}</span>
-                        </div>
-                        <div class="feature-deviation" id="deviation-{{ feature.id }}">Deviation: —</div>
-                        <div class="feature-sparkline" id="sparkline-{{ feature.id }}"></div>
-                        {% if feature.tolerance_upper %}
-                        <div class="feature-tolerance">
-                            <div class="tolerance-bar">
-                                <div class="tolerance-fill" id="tolerance-fill-{{ feature.id }}"></div>
-                                <div class="tolerance-marker"></div>
-                            </div>
-                            <span class="tolerance-limits">±{{ feature.tolerance_upper }}</span>
-                        </div>
-                        {% endif %}
+            <!-- TREND CHART -->
+            <div class="trend-panel">
+                <div class="trend-header">
+                    <span class="trend-title">Deviation trend</span>
+                    <div style="display:flex; gap:12px; align-items:center; font-family:'JetBrains Mono'; font-size:9px;">
+                        <span style="color:var(--red);">― ― UTL/LTL</span>
+                        <span style="color:#0099ff;">· · THR</span>
+                        <span style="color:#0099ff;">◆ offset</span>
                     </div>
-                    {% empty %}
-                    <div class="empty-state">
-                        <p>No features configured</p>
-                        <a href="{% url 'measurement:feature_add' %}">+ Add feature</a>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                <div class="channels-panel">
-                    <div class="channels-title">Live Channels</div>
-                    {% for gauge in gauges %}
-                        {% for channel in gauge.channels.all %}
-                        <div class="channel-row" data-channel-index="{{ channel.channel_index }}">
-                            <div class="channel-label">
-                                <span class="channel-index">CH{{ channel.display_index }}</span>
-                                <span class="channel-name">{{ channel.name }}</span>
-                            </div>
-                            <span class="channel-value" id="channel-{{ channel.channel_index }}">—</span>
-                        </div>
+                    <select class="trend-select" id="trendFeatureSelect" onchange="switchTrendFeature()">
+                        {% for feature in features %}
+                        <option value="{{ feature.id }}" data-nominal="{{ feature.nominal|default_if_none:'0' }}" data-upper="{{ feature.tolerance_upper|default_if_none:'' }}" data-lower="{{ feature.tolerance_lower|default_if_none:'' }}">
+                            {{ feature.name }}
+                        </option>
                         {% endfor %}
-                    {% endfor %}
-                    
-                    <div class="actions-row">
-                        <button class="btn primary" id="btnCapture">Capture</button>
-                        <button class="btn" id="btnMaster">Master</button>
-                    </div>
+                    </select>
+                </div>
+                <div class="trend-chart-wrap">
+                    <canvas id="trendChart"></canvas>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- ═══════════════════════════════════════════════════════════════════════════
-         COMPENSATION PANEL
-         ═══════════════════════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelCompensation">
-        <div class="panel-header" onclick="togglePanel('panelCompensation')">
-            <div class="panel-title">
-                <div class="panel-title-icon" style="background: var(--blue);"></div>
-                Compensation
-            </div>
-            <span class="panel-toggle">▼</span>
-        </div>
-        <div class="panel-content">
-            <div class="compensation-grid" id="compensationGrid">
-                {% for rule in compensation_rules %}
-                <div class="tool-card {{ rule.wear_status }}" id="tool-card-{{ rule.id }}" data-rule-id="{{ rule.id }}">
-                    <div class="tool-header">
-                        <span class="tool-name">{{ rule.feature.name }}</span>
-                        <span class="tool-id">T{{ rule.tool_number }} {{ rule.offset_register }}</span>
-                    </div>
-                    <div class="tool-wear-visual">
-                        <div class="wear-gauge">
-                            <svg viewBox="0 0 36 36" width="60" height="60">
-                                <circle class="wear-gauge-bg" cx="18" cy="18" r="15"/>
-                                <circle class="wear-gauge-fill {{ rule.wear_status }}" 
-                                        cx="18" cy="18" r="15"
-                                        stroke-dasharray="94.2"
-                                        stroke-dashoffset="{{ 94.2|add:rule.wear_percentage|divisibleby:100|floatformat:1 }}"
-                                        id="wear-gauge-{{ rule.id }}"/>
-                            </svg>
-                            <span class="wear-gauge-text" id="wear-pct-{{ rule.id }}">{{ rule.wear_percentage|floatformat:0 }}%</span>
+
+            <!-- FEATURE CARDS -->
+            <div class="features-row">
+                {% for feature in features %}
+                <div class="feature-card" id="fcard-{{ feature.id }}" data-feature-id="{{ feature.id }}">
+                    <div class="feature-header">
+                        <div>
+                            <div class="feature-name">{{ feature.name }}</div>
+                            <div class="feature-type">{{ feature.get_feature_type_display }}</div>
                         </div>
-                        <div class="tool-details">
-                            <div class="tool-stat">
-                                <span class="tool-stat-label">Accumulated</span>
-                                <span class="tool-stat-value" id="accum-{{ rule.id }}">{{ rule.accumulated_offset|floatformat:4 }}</span>
-                            </div>
-                            <div class="tool-stat">
-                                <span class="tool-stat-label">Limit</span>
-                                <span class="tool-stat-value">{{ rule.wear_limit }}</span>
-                            </div>
-                            <div class="tool-stat">
-                                <span class="tool-stat-label">Max/Cycle</span>
-                                <span class="tool-stat-value">{{ rule.max_per_cycle }}</span>
-                            </div>
-                        </div>
+                        <div class="feature-status-dot" id="fdot-{{ feature.id }}"></div>
                     </div>
-                    <div class="tool-last-adj">
-                        Last: <strong id="last-adj-{{ rule.id }}">{{ rule.last_adjustment|floatformat:4 }}</strong>
-                        {% if rule.last_adjustment_at %}
-                        <span style="float: right;">{{ rule.last_adjustment_at|timesince }} ago</span>
-                        {% endif %}
+                    <div class="feature-value" id="fval-{{ feature.id }}">—</div>
+                    <div class="feature-meta">
+                        <span class="feature-deviation" id="fdev-{{ feature.id }}">dev: —</span>
+                        <span>{{ feature.unit }}</span>
                     </div>
                 </div>
                 {% empty %}
                 <div class="empty-state">
-                    <p>No compensation rules</p>
-                    <a href="{% url 'compensation:rule_add' %}">+ Add rule</a>
+                    No features configured. <a href="{% url 'measurement:feature_add' %}">Add feature</a>
                 </div>
                 {% endfor %}
             </div>
-            
-            <div class="events-section">
-                <div class="events-title">Recent Compensation Events</div>
-                <div class="events-feed" id="eventsFeed">
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <!-- Channels -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">Channels</div>
+                {% for gauge in gauges %}
+                    {% for channel in gauge.channels.all %}
+                    <div class="channel-row">
+                        <div class="channel-label">
+                            <span class="channel-idx">CH{{ channel.display_index }}</span>
+                            {{ channel.name }}
+                        </div>
+                        <span class="channel-val" id="chval-{{ channel.channel_index }}">—</span>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Tool Wear -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">Tool wear</div>
+                <div id="wearContainer">
+                    {% for rule in compensation_rules %}
+                    <div class="wear-row" id="wear-{{ rule.id }}">
+                        <span class="wear-tool-id">T{{ rule.tool_number }}</span>
+                        <div class="wear-bar-wrap">
+                            <div class="wear-bar-fill" id="wbar-{{ rule.id }}" style="width: {{ rule.wear_percentage|floatformat:0 }}%;"></div>
+                        </div>
+                        <span class="wear-pct" id="wpct-{{ rule.id }}">{{ rule.wear_percentage|floatformat:0 }}%</span>
+                        <span class="wear-value" id="wval-{{ rule.id }}">{{ rule.accumulated_offset|floatformat:4 }}</span>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">No rules</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Recent Events -->
+            <div class="sidebar-section" style="flex:1; min-height:0; overflow-y:auto;">
+                <div class="sidebar-title">Recent offsets</div>
+                <div id="eventsContainer">
                     {% for event in recent_events %}
                     <div class="event-row">
                         <span class="event-time">{{ event.timestamp|time:"H:i:s" }}</span>
                         <span class="event-tool">T{{ event.rule.tool_number }}</span>
-                        <span class="event-feature">{{ event.rule.feature.name }}</span>
                         <span class="event-offset {% if event.offset_applied >= 0 %}positive{% else %}negative{% endif %}">
                             {{ event.offset_applied|floatformat:4 }}
                         </span>
-                        <span class="event-status {{ event.status|lower }}">{{ event.status }}</span>
-                    </div>
-                    {% empty %}
-                    <div class="empty-state">
-                        <p>No compensation events yet</p>
+                        <span class="event-status-badge {{ event.status|lower }}">{{ event.status }}</span>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- ═══════════════════════════════════════════════════════════════════════════
-         HISTORY PANEL
-         ═══════════════════════════════════════════════════════════════════════════ -->
-    <div class="panel" id="panelHistory">
-        <div class="panel-header" onclick="togglePanel('panelHistory')">
-            <div class="panel-title">
-                <div class="panel-title-icon" style="background: var(--purple, #a855f7);"></div>
-                History
-            </div>
-            <span class="panel-toggle">▼</span>
-        </div>
-        <div class="panel-content">
-            <div class="history-grid">
-                <div class="trend-chart-container">
-                    <canvas id="trendChart"></canvas>
-                </div>
-                <div class="history-stats">
-                    <div class="history-stat-card">
-                        <div class="history-stat-value pass" id="historyPassRate">{{ stats.pass_rate }}%</div>
-                        <div class="history-stat-label">Pass Rate Today</div>
-                    </div>
-                    <div class="history-stat-card">
-                        <div class="history-stat-value">{{ stats.total_all }}</div>
-                        <div class="history-stat-label">Total Measurements</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="history-table">
-                <div class="history-table-header">
-                    <span>Time</span>
-                    <span>Feature</span>
-                    <span>Nominal</span>
-                    <span>Deviation</span>
-                    <span>Status</span>
-                </div>
-                <div class="history-table-body" id="historyTableBody"></div>
-            </div>
-        </div>
+
+    <!-- ═══════════ BOTTOM BAR ═══════════ -->
+    <div class="bottom-bar">
+        <span id="clockDisplay"></span>
+        <span>|</span>
+        <span id="wsInfo">WS: connecting</span>
     </div>
 </div>
 
@@ -1223,470 +656,481 @@
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
 
 <script>
 // =============================================================================
-// DATA & STATE
+// STATE
 // =============================================================================
-const SERVER_DATA = JSON.parse(document.getElementById('server-data').textContent);
-const FEATURES = SERVER_DATA.features;
-const COMPENSATION = SERVER_DATA.compensation;
-
+const SERVER = JSON.parse(document.getElementById('server-data').textContent);
+const FEATURES = SERVER.features;
+const COMPENSATION = SERVER.compensation;
 let ws = null;
 let reconnectAttempts = 0;
-let simulationRunning = false;
-window.channelValues = {};
 
-// =============================================================================
-// PANEL COLLAPSE
-// =============================================================================
-function togglePanel(panelId) {
-    document.getElementById(panelId).classList.toggle('collapsed');
-}
+// Trend chart data storage: { featureId: [{ deviation, status, timestamp, compensated, offset }, ...] }
+const trendData = {};
+const accumOffsetTrend = {}; // { featureId: [accumulatedOffset, ...] }
+FEATURES.forEach(f => {
+    trendData[f.id] = f.sparkline ? f.sparkline.map(p => ({
+        deviation: p.deviation,
+        status: p.status,
+        timestamp: p.timestamp,
+        compensated: false,
+        offset: 0
+    })) : [];
+    accumOffsetTrend[f.id] = [];
+});
+
+const MAX_TREND_POINTS = 100;
 
 // =============================================================================
 // WEBSOCKET
 // =============================================================================
-function connectWebSocket() {
-    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${wsScheme}://${window.location.host}/ws/gauge/`);
-    
+function connectWS() {
+    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${scheme}://${location.host}/ws/gauge/`);
+
     ws.onopen = () => {
-        console.log('WebSocket connected');
         reconnectAttempts = 0;
         document.getElementById('wsStatus').classList.add('connected');
         document.getElementById('wsStatusText').textContent = 'Connected';
+        document.getElementById('wsInfo').textContent = 'WS: connected';
     };
-    
+
     ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
         handleMessage(data);
     };
-    
+
     ws.onclose = () => {
         document.getElementById('wsStatus').classList.remove('connected');
         document.getElementById('wsStatusText').textContent = 'Disconnected';
-        if (reconnectAttempts < 5) {
+        document.getElementById('wsInfo').textContent = 'WS: disconnected';
+        if (reconnectAttempts < 10) {
             reconnectAttempts++;
-            setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+            setTimeout(connectWS, 2000 * reconnectAttempts);
         }
     };
 }
 
-function sendCommand(command, params = {}) {
+function sendCmd(command, params = {}) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'command', command, ...params }));
     }
 }
 
+// =============================================================================
+// MESSAGE HANDLER
+// =============================================================================
 function handleMessage(data) {
     switch (data.type) {
         case 'gauge_reading':
-            window.channelValues[data.channel] = data.value;
+            // Live hardware readings (real N1700)
             updateChannel(data.channel, data.value);
-            updateFeatures(window.channelValues);
             break;
+
         case 'capture_result':
+            // Full capture result (from simulator or manual capture)
             handleCaptureResult(data);
             break;
+
         case 'machine_state':
             handleMachineState(data);
             break;
+
         case 'simulation_state':
+            // Simulation metadata (tool wear from simulator)
             handleSimulationState(data);
             break;
-        case 'command_response':
-            console.log(`Command ${data.command}: ${data.success ? '✓' : '✗'} ${data.message}`);
-            break;
+
         case 'connection_established':
-            console.log('WebSocket connected:', data.message);
+            console.log('WS:', data.message);
+            break;
+
+        case 'command_response':
+            if (!data.success) console.warn('Command failed:', data.command, data.message);
             break;
     }
 }
 
 // =============================================================================
-// SIMULATION CONTROLS
+// CAPTURE RESULT → UPDATE EVERYTHING
 // =============================================================================
-function startSimulation() {
-    sendCommand('simulation_start');
-    simulationRunning = true;
-    updateSimulationUI();
-    sendCommand('machine_start');
+function handleCaptureResult(data) {
+
+    // 1. Update channel values
+    if (data.channels) {
+        for (const [idx, val] of Object.entries(data.channels)) {
+            updateChannel(parseInt(idx), val);
+        }
+    }
+
+    // 2. Update feature cards + trend data
+    if (data.features) {
+        data.features.forEach(f => {
+            updateFeatureCard(f);
+            addTrendPoint(f.id, f.deviation, f.status, f.compensation_triggered, f.offset_sent || 0);
+        });
+    }
+
+    // 4. Update trend chart
+    updateTrendChart();
+
+    // 5. Add compensation events and track accumulated offset
+    if (data.features) {
+        data.features.forEach(f => {
+            if (f.compensation_triggered && f.offset_sent !== null) {
+                // Track accumulated offset
+                COMPENSATION.forEach(rule => {
+                    if (rule.feature_name === f.name) {
+                        accumOffsets[rule.id] = (accumOffsets[rule.id] || 0) + f.offset_sent;
+                    }
+                });
+                addEventRow(f);
+            }
+        });
+        updateWearBars();
+    }
+
+    // 6. Flash capture button
+    const btn = document.getElementById('btnCapture');
+    btn.style.background = data.all_pass ? 'var(--green)' : data.any_alarm ? 'var(--red)' : 'var(--yellow)';
+    btn.style.color = '#000';
+    setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 400);
 }
 
-function stopSimulation() {
-    sendCommand('simulation_stop');
-    simulationRunning = false;
-    updateSimulationUI();
+// =============================================================================
+// CHANNEL DISPLAY
+// =============================================================================
+function updateChannel(index, value) {
+    const el = document.getElementById(`chval-${index}`);
+    if (el) el.textContent = typeof value === 'number' ? value.toFixed(4) : value;
 }
 
-function resetSimulation() {
-    sendCommand('simulation_reset');
-    simulationRunning = false;
-    updateSimulationUI();
-    
-    document.getElementById('sim-total-cycles').textContent = '0';
-    [1, 2].forEach(tool => {
-        document.getElementById(`tool-${tool}-wear-value`).textContent = '0.0000';
-        document.getElementById(`tool-${tool}-wear-bar`).style.width = '0%';
-        document.getElementById(`tool-${tool}-wear-bar`).style.background = 'var(--green)';
-        document.getElementById(`tool-${tool}-wear-pct`).textContent = '0%';
-        document.getElementById(`tool-${tool}-cycles`).textContent = '0 cycles';
-        document.getElementById(`tool-${tool}-card`).classList.remove('worn', 'critical');
+// =============================================================================
+// FEATURE CARD
+// =============================================================================
+function updateFeatureCard(f) {
+    const card = document.getElementById(`fcard-${f.id}`);
+    const dot = document.getElementById(`fdot-${f.id}`);
+    const val = document.getElementById(`fval-${f.id}`);
+    const dev = document.getElementById(`fdev-${f.id}`);
+    if (!card) return;
+
+    // Find matching config for resolution
+    const cfg = FEATURES.find(x => x.id === f.id);
+    const res = cfg ? cfg.resolution : 4;
+
+    const status = f.status ? f.status.toLowerCase() : '';
+
+    // Value
+    if (val) {
+        val.textContent = f.value !== undefined ? f.value.toFixed(res) : '—';
+        val.className = `feature-value ${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : status === 'alarm' ? 'alarm' : ''}`;
+    }
+
+    // Deviation
+    if (dev && f.deviation !== undefined) {
+        const d = f.deviation;
+        dev.textContent = `dev: ${d >= 0 ? '+' : ''}${d.toFixed(res)}`;
+    }
+
+    // Status dot
+    if (dot) dot.className = `feature-status-dot ${status}`;
+
+    // Card border
+    card.className = `feature-card ${status === 'warn' ? 'warn' : status === 'alarm' ? 'alarm' : ''}`;
+}
+
+// =============================================================================
+// TREND DATA + CHART
+// =============================================================================
+function addTrendPoint(featureId, deviation, status, compensated = false, offsetSent = 0) {
+    if (!trendData[featureId]) trendData[featureId] = [];
+    if (!accumOffsetTrend[featureId]) accumOffsetTrend[featureId] = [];
+
+    trendData[featureId].push({
+        deviation: deviation,
+        status: status,
+        timestamp: new Date().toISOString(),
+        compensated: compensated,
+        offset: offsetSent
+    });
+
+    // Track running accumulated offset for this feature
+    const rule = COMPENSATION.find(r => r.feature_name === (FEATURES.find(f => f.id === featureId) || {}).name);
+    const accum = rule ? Math.abs(accumOffsets[rule.id] || 0) : 0;
+    accumOffsetTrend[featureId].push(accum);
+
+    if (trendData[featureId].length > MAX_TREND_POINTS) {
+        trendData[featureId] = trendData[featureId].slice(-MAX_TREND_POINTS);
+        accumOffsetTrend[featureId] = accumOffsetTrend[featureId].slice(-MAX_TREND_POINTS);
+    }
+}
+
+let trendChart = null;
+
+function initTrendChart() {
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+
+    const sel = document.getElementById('trendFeatureSelect');
+    const opt = sel ? sel.selectedOptions[0] : null;
+    const upper = opt ? parseFloat(opt.dataset.upper) : null;
+    const lower = opt ? parseFloat(opt.dataset.lower) : null;
+
+    // Annotation lines for tolerance
+    const annotations = {};
+    if (upper && !isNaN(upper)) {
+        annotations.utl = { type: 'line', yMin: upper, yMax: upper, borderColor: 'rgba(255,51,51,0.9)', borderWidth: 2, borderDash: [6, 3], label: { content: 'UTL', display: true, position: 'end', font: { size: 9, family: 'JetBrains Mono' }, color: '#ff3333' } };
+        annotations.ltl = { type: 'line', yMin: -Math.abs(lower || upper), yMax: -Math.abs(lower || upper), borderColor: 'rgba(255,51,51,0.9)', borderWidth: 2, borderDash: [6, 3], label: { content: 'LTL', display: true, position: 'end', font: { size: 9, family: 'JetBrains Mono' }, color: '#ff3333' } };
+        annotations.nom = { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 };
+        // Compensation threshold lines
+        const rule = COMPENSATION.length ? COMPENSATION[0] : null;
+        if (rule && rule.trigger_threshold) {
+            const thr = rule.trigger_threshold;
+            annotations.uthr = { type: 'line', yMin: thr, yMax: thr, borderColor: 'rgba(0,153,255,0.5)', borderWidth: 1, borderDash: [2, 3], label: { content: 'THR', display: true, position: 'end', font: { size: 8, family: 'JetBrains Mono' }, color: '#0099ff' } };
+            annotations.lthr = { type: 'line', yMin: -thr, yMax: -thr, borderColor: 'rgba(0,153,255,0.5)', borderWidth: 1, borderDash: [2, 3], label: { content: 'THR', display: true, position: 'end', font: { size: 8, family: 'JetBrains Mono' }, color: '#0099ff' } };
+        }
+    }
+
+    const selectedId = sel ? parseInt(sel.value) : (FEATURES.length ? FEATURES[0].id : null);
+    const points = selectedId ? (trendData[selectedId] || []) : [];
+    const accumPoints = selectedId ? (accumOffsetTrend[selectedId] || []) : [];
+
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: points.map((_, i) => i + 1),
+            datasets: [{
+                    label: 'Deviation',
+                    data: points.map(p => p.deviation),
+                    borderColor: '#00ff88',
+                    borderWidth: 1.5,
+                    fill: false,
+                    tension: 0.2,
+                    pointRadius: points.map(p => p.compensated ? 7 : 3),
+                    pointBorderWidth: points.map(p => p.compensated ? 3 : 0),
+                    pointBorderColor: points.map(p => p.compensated ? '#ffffff' : 'transparent'),
+                    pointStyle: points.map(p => p.compensated ? 'rectRot' : 'circle'),
+                    pointBackgroundColor: points.map(p => {
+                        if (!p.status) return '#00ff88';
+                        const s = p.status.toLowerCase();
+                        return s === 'alarm' ? '#ff3333' : s === 'warn' ? '#ffcc00' : '#00ff88';
+                    }),
+                    pointHitRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 200 },
+            plugins: {
+                legend: { display: false },
+                annotation: { annotations: annotations },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            if (ctx.datasetIndex === 0) {
+                                const pt = points[ctx.dataIndex];
+                                let label = `Dev: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(4)}`;
+                                if (pt && pt.compensated) label += ` | Offset: ${pt.offset >= 0 ? '+' : ''}${pt.offset.toFixed(4)}`;
+                                return label;
+                            }
+                            return `Accum offset: ${ctx.parsed.y.toFixed(4)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { display: false },
+                y: {
+                    position: 'left',
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#555',
+                        font: { family: 'JetBrains Mono', size: 10 },
+                        callback: v => v.toFixed(4)
+                    }
+                },
+            }
+        }
     });
 }
 
-function setCycleTime(value) {
-    document.getElementById('cycle-time-value').textContent = `${parseFloat(value).toFixed(1)}s`;
-    sendCommand('simulation_set_cycle_time', { cycle_time: parseFloat(value) });
+function updateTrendChart() {
+    if (!trendChart) return;
+
+    const sel = document.getElementById('trendFeatureSelect');
+    const selectedId = sel ? parseInt(sel.value) : (FEATURES.length ? FEATURES[0].id : null);
+    const points = selectedId ? (trendData[selectedId] || []) : [];
+    const accumPoints = selectedId ? (accumOffsetTrend[selectedId] || []) : [];
+
+    trendChart.data.labels = points.map((_, i) => i + 1);
+
+    // Deviation dataset
+    trendChart.data.datasets[0].data = points.map(p => p.deviation);
+    trendChart.data.datasets[0].pointBackgroundColor = points.map(p => {
+        if (!p.status) return '#00ff88';
+        const s = p.status.toLowerCase();
+        return s === 'alarm' ? '#ff3333' : s === 'warn' ? '#ffcc00' : '#00ff88';
+    });
+    trendChart.data.datasets[0].pointRadius = points.map(p => p.compensated ? 7 : 3);
+    trendChart.data.datasets[0].pointBorderWidth = points.map(p => p.compensated ? 3 : 0);
+    trendChart.data.datasets[0].pointBorderColor = points.map(p => p.compensated ? '#ffffff' : 'transparent');
+    trendChart.data.datasets[0].pointStyle = points.map(p => p.compensated ? 'rectRot' : 'circle');
+
+
+    trendChart.update('none');
 }
 
-function setWearRate(tool, rate) {
-    document.getElementById(`tool-${tool}-rate-value`).textContent = parseFloat(rate).toFixed(4);
-    sendCommand('simulation_set_wear_rate', { tool: tool, rate: parseFloat(rate) });
+function switchTrendFeature() {
+    // Rebuild chart with new feature's tolerance lines
+    if (trendChart) {
+        trendChart.destroy();
+        trendChart = null;
+    }
+    initTrendChart();
 }
 
-function induceWear(tool, amount) {
-    sendCommand('simulation_induce_wear', { tool: tool, amount: amount });
-}
+// =============================================================================
+// COMPENSATION / EVENTS
+// =============================================================================
+function addEventRow(f) {
+    const container = document.getElementById('eventsContainer');
+    if (!container) return;
 
-function changeTool(tool) {
-    sendCommand('machine_change_tool', { tool: tool });
-}
+    const now = new Date();
+    const time = now.toTimeString().slice(0, 8);
+    const offset = f.offset_sent;
+    const sign = offset >= 0 ? 'positive' : 'negative';
+    const dev = f.deviation !== undefined ? f.deviation : 0;
+    const devStr = `${dev >= 0 ? '+' : ''}${dev.toFixed(4)}`;
 
-function updateSimulationUI() {
-    const panel = document.getElementById('simulation-panel');
-    const statusText = document.getElementById('sim-status-text');
-    const startBtn = document.getElementById('sim-start-btn');
-    const stopBtn = document.getElementById('sim-stop-btn');
-    
-    if (simulationRunning) {
-        panel.classList.add('running');
-        panel.classList.remove('stopped');
-        statusText.textContent = 'RUNNING';
-        statusText.style.color = 'var(--green)';
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-    } else {
-        panel.classList.add('stopped');
-        panel.classList.remove('running');
-        statusText.textContent = 'STOPPED';
-        statusText.style.color = 'var(--text-dim)';
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
+    // Find tool number from compensation rules
+    const rule = COMPENSATION.find(r => r.feature_name === f.name);
+    const toolLabel = rule ? `T${rule.tool_number}` : 'T?';
+
+    const row = document.createElement('div');
+    row.className = 'event-row';
+    row.innerHTML = `
+        <span class="event-time">${time}</span>
+        <span class="event-tool">${toolLabel}</span>
+        <span style="font-family:'JetBrains Mono';font-size:10px;color:var(--text-dim);">${devStr}</span>
+        <span class="event-offset ${sign}">${offset >= 0 ? '+' : ''}${offset.toFixed(4)}</span>
+        <span class="event-status-badge applied">APPLIED</span>
+    `;
+
+    container.insertBefore(row, container.firstChild);
+
+    while (container.children.length > 20) {
+        container.removeChild(container.lastChild);
     }
 }
 
 function handleSimulationState(data) {
-    if (data.enabled !== undefined) {
-        simulationRunning = data.enabled;
-        updateSimulationUI();
-    }
-    
-    if (data.cycle_time !== undefined) {
-        document.getElementById('cycle-time-slider').value = data.cycle_time;
-        document.getElementById('cycle-time-value').textContent = `${data.cycle_time.toFixed(1)}s`;
-    }
-    
-    const toolWear = data.tool_wear || data;
-    if (toolWear && toolWear.tools) {
-        if (toolWear.total_cycles !== undefined) {
-            document.getElementById('sim-total-cycles').textContent = toolWear.total_cycles;
+    // We no longer use simulation tool wear for the dashboard.
+    // Tool wear bars are updated from compensation data in handleCaptureResult.
+}
+
+// Track accumulated offset per compensation rule (the real "tool life" indicator)
+const accumOffsets = {};
+COMPENSATION.forEach(r => { accumOffsets[r.id] = r.accumulated_offset || 0; });
+
+function updateWearBars() {
+    COMPENSATION.forEach(rule => {
+        const accum = Math.abs(accumOffsets[rule.id] || 0);
+        const limit = rule.wear_limit || 0.1;
+        const pct = (accum / limit) * 100;
+
+        const bar = document.getElementById(`wbar-${rule.id}`);
+        const pctEl = document.getElementById(`wpct-${rule.id}`);
+        const valEl = document.getElementById(`wval-${rule.id}`);
+
+        if (bar) {
+            bar.style.width = `${Math.min(pct, 100)}%`;
+            bar.className = `wear-bar-fill ${pct >= 100 ? 'critical' : pct >= 75 ? 'warning' : ''}`;
         }
-        
-        for (const [toolNum, toolData] of Object.entries(toolWear.tools)) {
-            const t = parseInt(toolNum);
-            const wearValue = toolData.wear || 0;
-            const wearPct = toolData.wear_percentage || 0;
-            const cycleCount = toolData.cycle_count || 0;
-            
-            const wearValueEl = document.getElementById(`tool-${t}-wear-value`);
-            const wearBarEl = document.getElementById(`tool-${t}-wear-bar`);
-            const wearPctEl = document.getElementById(`tool-${t}-wear-pct`);
-            const cyclesEl = document.getElementById(`tool-${t}-cycles`);
-            const cardEl = document.getElementById(`tool-${t}-card`);
-            
-            if (wearValueEl) wearValueEl.textContent = wearValue.toFixed(4);
-            if (wearPctEl) wearPctEl.textContent = `${wearPct.toFixed(0)}%`;
-            if (cyclesEl) cyclesEl.textContent = `${cycleCount} cycles`;
-            
-            if (wearBarEl) {
-                wearBarEl.style.width = `${Math.min(wearPct, 100)}%`;
-                wearBarEl.style.background = wearPct >= 100 ? 'var(--red)' : wearPct >= 75 ? 'var(--yellow)' : 'var(--green)';
-            }
-            
-            if (cardEl) {
-                cardEl.classList.remove('worn', 'critical');
-                if (toolData.is_worn) cardEl.classList.add('critical');
-                else if (wearPct >= 75) cardEl.classList.add('worn');
-            }
-            
-            if (toolData.wear_rate !== undefined) {
-                const rateSlider = document.getElementById(`tool-${t}-rate-slider`);
-                const rateValue = document.getElementById(`tool-${t}-rate-value`);
-                if (rateSlider) rateSlider.value = toolData.wear_rate;
-                if (rateValue) rateValue.textContent = toolData.wear_rate.toFixed(4);
-            }
-        }
-    }
+        if (pctEl) pctEl.textContent = `${pct.toFixed(0)}%`;
+        if (valEl) valEl.textContent = accum.toFixed(4);
+    });
 }
 
 // =============================================================================
 // MACHINE STATE
 // =============================================================================
 function handleMachineState(data) {
-    const stateEl = document.getElementById('machineState');
-    const iconEl = document.getElementById('machineStateIcon');
-    const alarmEl = document.getElementById('machineAlarm');
-    const ackBtn = document.getElementById('btnMachineAck');
-    const partCountEl = document.getElementById('machinePartCount');
-    const cycleTimeEl = document.getElementById('machineCycleTime');
-    
     const state = data.state || 'DISCONNECTED';
-    stateEl.textContent = state;
-    stateEl.className = `machine-state ${state.toLowerCase()}`;
-    
-    const stateColors = {
-        'IDLE': 'var(--text-secondary)',
-        'RUNNING': 'var(--green)',
-        'ALARM': 'var(--red)',
-        'TOOL_CHANGE': 'var(--yellow)',
-        'DISCONNECTED': 'var(--text-dim)'
-    };
-    iconEl.style.background = stateColors[state] || 'var(--text-dim)';
-    
+    const stateEl = document.getElementById('plcState');
+    const alarmEl = document.getElementById('plcAlarm');
+    const partEl = document.getElementById('plcPartCount');
+
+    if (stateEl) {
+        stateEl.textContent = state;
+        stateEl.className = `plc-state ${state.toLowerCase()}`;
+    }
+
     if (data.alarm_active && data.alarm_message) {
         alarmEl.textContent = data.alarm_message;
-        alarmEl.style.display = 'block';
-        ackBtn.style.display = 'block';
+        alarmEl.style.display = '';
     } else {
         alarmEl.style.display = 'none';
-        ackBtn.style.display = 'none';
     }
-    
-    if (data.part_count_today !== undefined) partCountEl.textContent = data.part_count_today;
-    if (data.cycle_time !== undefined) cycleTimeEl.textContent = `${data.cycle_time}s`;
+
+    if (data.part_count_today !== undefined && partEl) {
+        partEl.textContent = data.part_count_today;
+    }
 }
 
 // =============================================================================
-// CHANNEL & FEATURE UPDATES
+// PLC COMMANDS
 // =============================================================================
-function updateChannel(index, value) {
-    const el = document.getElementById(`channel-${index}`);
-    if (el) el.textContent = value.toFixed(4);
+function cmdStart() {
+    // Start simulation + machine
+    sendCmd('simulation_start');
+    sendCmd('machine_start');
 }
 
-function updateFeatures(channelValues) {
-    FEATURES.forEach(feature => {
-        const inputs = {};
-        let hasAll = true;
-        
-        feature.inputs.forEach(inp => {
-            const val = channelValues[inp.channel_index];
-            if (val !== undefined) inputs[inp.label] = val;
-            else hasAll = false;
+function cmdStop() {
+    sendCmd('simulation_stop');
+    sendCmd('machine_stop');
+}
+
+function cmdCapture() { sendCmd('capture'); }
+function cmdMaster() { sendCmd('master_all'); }
+function cmdToolChanged() {
+    if (!confirm('Reset accumulated offset? Only do this after physically changing the tool insert.')) return;
+    sendCmd('machine_change_tool', { tool: 1 });
+    COMPENSATION.forEach(r => { accumOffsets[r.id] = 0; });
+    updateWearBars();
+}
+
+// =============================================================================
+// INIT ON LOAD
+// =============================================================================
+
+// Initialize feature cards from server data
+FEATURES.forEach(f => {
+    if (f.last_value !== null && f.last_value !== undefined) {
+        updateFeatureCard({
+            id: f.id,
+            value: f.last_value,
+            deviation: f.last_deviation,
+            status: f.last_status
         });
-        
-        if (!hasAll) return;
-        
-        let value;
-        try {
-            let expr = feature.formula.toUpperCase();
-            for (const [label, val] of Object.entries(inputs)) {
-                expr = expr.replace(new RegExp(label, 'g'), val);
-            }
-            value = eval(expr);
-        } catch (e) { return; }
-        
-        const valueEl = document.getElementById(`value-${feature.id}`);
-        const statusEl = document.getElementById(`status-${feature.id}`);
-        const deviationEl = document.getElementById(`deviation-${feature.id}`);
-        const cardEl = document.getElementById(`feature-card-${feature.id}`);
-        
-        if (valueEl) valueEl.textContent = value.toFixed(feature.resolution);
-        
-        const nominal = feature.nominal || 0;
-        const deviation = value - nominal;
-        const upper = feature.tolerance_upper;
-        const lower = feature.tolerance_lower || -upper;
-        
-        if (deviationEl) {
-            deviationEl.textContent = `Deviation: ${deviation >= 0 ? '+' : ''}${deviation.toFixed(feature.resolution)}`;
-        }
-        
-        let status = 'ok';
-        if (upper && (deviation > upper || deviation < lower)) status = 'alarm';
-        else if (upper && (deviation > upper * 0.8 || deviation < lower * 0.8)) status = 'warn';
-        
-        if (statusEl) statusEl.className = `feature-status ${status}`;
-        if (valueEl) valueEl.className = `feature-value ${status}`;
-        if (cardEl) cardEl.className = `feature-card ${status === 'ok' ? '' : status}`;
-        
-        const fillEl = document.getElementById(`tolerance-fill-${feature.id}`);
-        if (fillEl && upper) {
-            const range = upper - lower;
-            const pos = ((deviation - lower) / range) * 100;
-            fillEl.style.left = `${Math.max(0, Math.min(90, pos - 5))}%`;
-            fillEl.style.width = '10%';
-            fillEl.className = `tolerance-fill ${status}`;
-        }
-    });
-}
+    }
+});
 
-// =============================================================================
-// CAPTURE RESULT
-// =============================================================================
-function handleCaptureResult(data) {
-    if (data.all_pass) incrementStat('statPass');
-    else if (data.any_alarm) incrementStat('statFail');
-    else incrementStat('statWarn');
-    incrementStat('statTotal');
-    updatePassRate();
-    
-    data.features.forEach(f => {
-        addHistoryRow(f);
-        addSparklinePoint(f.id, f.deviation, f.status);
-    });
-    
-    const btn = document.getElementById('btnCapture');
-    btn.style.background = data.all_pass ? 'var(--green)' : 'var(--red)';
-    btn.style.color = '#000';
-    setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 500);
-}
+// Clock
+setInterval(() => {
+    const now = new Date();
+    document.getElementById('clockDisplay').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+}, 1000);
+document.getElementById('clockDisplay').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-function incrementStat(id) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = parseInt(el.textContent) + 1;
-}
-
-function updatePassRate() {
-    const total = parseInt(document.getElementById('statTotal').textContent);
-    const pass = parseInt(document.getElementById('statPass').textContent);
-    const rate = total > 0 ? (pass / total * 100).toFixed(1) : 0;
-    document.getElementById('statRate').textContent = `${rate}%`;
-    document.getElementById('historyPassRate').textContent = `${rate}%`;
-}
-
-function addHistoryRow(feature) {
-    const tbody = document.getElementById('historyTableBody');
-    const row = document.createElement('div');
-    row.className = 'history-table-row';
-    
-    const deviation = feature.deviation || 0;
-    const deviationStr = (deviation >= 0 ? '+' : '') + deviation.toFixed(4);
-    const statusColor = feature.status === 'OK' ? 'green' : feature.status === 'WARN' ? 'yellow' : 'red';
-    
-    row.innerHTML = `
-        <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
-            ${new Date().toLocaleTimeString('en-US', {hour12: false})}
-        </span>
-        <span style="color: var(--text-secondary);">${feature.name}</span>
-        <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim);">
-            ${feature.nominal !== undefined ? feature.nominal.toFixed(3) : '—'}
-        </span>
-        <span style="font-family: 'JetBrains Mono'; color: var(--${statusColor});">
-            ${deviationStr}
-        </span>
-        <span style="color: var(--${statusColor}); font-weight: 600;">
-            ${feature.status}
-        </span>
-    `;
-    tbody.insertBefore(row, tbody.firstChild);
-    while (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
-}
-
-function addSparklinePoint(featureId, deviation, status) {
-    const container = document.getElementById(`sparkline-${featureId}`);
-    if (!container) return;
-    
-    const bar = document.createElement('div');
-    bar.className = `sparkline-bar ${status.toLowerCase()}`;
-    bar.style.height = `${Math.min(100, Math.abs(deviation) * 1000)}%`;
-    container.appendChild(bar);
-    
-    while (container.children.length > 20) container.removeChild(container.firstChild);
-}
-
-// =============================================================================
-// SPARKLINES INIT
-// =============================================================================
-function initSparklines() {
-    FEATURES.forEach(feature => {
-        const container = document.getElementById(`sparkline-${feature.id}`);
-        if (!container || !feature.sparkline.length) return;
-        
-        container.innerHTML = '';
-        const maxDev = Math.max(...feature.sparkline.map(d => Math.abs(d.deviation)), 0.001);
-        
-        feature.sparkline.forEach(point => {
-            const bar = document.createElement('div');
-            bar.className = `sparkline-bar ${point.status.toLowerCase()}`;
-            const height = Math.min(100, (Math.abs(point.deviation) / maxDev) * 100);
-            bar.style.height = `${Math.max(10, height)}%`;
-            container.appendChild(bar);
-        });
-        
-        if (feature.last_value !== null) {
-            const valueEl = document.getElementById(`value-${feature.id}`);
-            const statusEl = document.getElementById(`status-${feature.id}`);
-            const deviationEl = document.getElementById(`deviation-${feature.id}`);
-            
-            if (valueEl) {
-                valueEl.textContent = feature.last_value.toFixed(feature.resolution);
-                valueEl.className = `feature-value ${feature.last_status.toLowerCase()}`;
-            }
-            if (statusEl) statusEl.className = `feature-status ${feature.last_status.toLowerCase()}`;
-            if (deviationEl && feature.last_deviation !== null) {
-                const d = feature.last_deviation;
-                deviationEl.textContent = `Deviation: ${d >= 0 ? '+' : ''}${d.toFixed(feature.resolution)}`;
-            }
-        }
-    });
-}
-
-// =============================================================================
-// BUTTON EVENT LISTENERS
-// =============================================================================
-document.getElementById('btnCapture').addEventListener('click', () => sendCommand('capture'));
-document.getElementById('btnMaster').addEventListener('click', () => sendCommand('master_all'));
-document.getElementById('btnMachineStart').addEventListener('click', () => sendCommand('machine_start'));
-document.getElementById('btnMachineStop').addEventListener('click', () => sendCommand('machine_stop'));
-document.getElementById('btnMachineAck').addEventListener('click', () => sendCommand('machine_ack_alarm'));
-document.getElementById('btnMachineReset').addEventListener('click', () => sendCommand('machine_reset_count'));
-
-// =============================================================================
-// INIT
-// =============================================================================
-initSparklines();
-connectWebSocket();
-
-// Trend chart
-const ctx = document.getElementById('trendChart');
-if (ctx) {
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: FEATURES.length > 0 && FEATURES[0].sparkline ? FEATURES[0].sparkline.map((_, i) => i + 1) : [],
-            datasets: FEATURES.map((f, i) => ({
-                label: f.name,
-                data: f.sparkline ? f.sparkline.map(p => p.deviation) : [],
-                borderColor: ['#00ff88', '#3b82f6', '#a855f7'][i % 3],
-                borderWidth: 2,
-                fill: false,
-                tension: 0.3,
-                pointRadius: 0,
-            }))
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'top', labels: { color: '#888', font: { size: 10 } } } },
-            scales: {
-                x: { display: false },
-                y: { grid: { color: '#333' }, ticks: { color: '#888', font: { family: 'JetBrains Mono', size: 10 } } }
-            }
-        }
-    });
-}
+// Chart + WebSocket
+initTrendChart();
+connectWS();
 </script>
 {% endblock %}

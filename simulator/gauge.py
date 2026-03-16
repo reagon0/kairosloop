@@ -2,8 +2,10 @@
 """
 Simulated gauge readings based on tool wear and compensation.
 
-This is where physics meets simulation:
-  reading = nominal - wear + offset + random_variation
+Two opposing probes measure an OD. As Tool 1 wears, the diameter shrinks.
+Compensation offsets push it back.
+
+    reading = nominal - wear + offset + random_variation
 """
 
 import random
@@ -14,39 +16,23 @@ if TYPE_CHECKING:
     from simulator.tool_wear import ToolWearSimulation
 
 
-# Channel configuration
+# Two opposing probes for OD measurement
 CHANNEL_CONFIG = {
     0: {
-        'name': 'OD Left',
+        'name': 'OD Probe Left',
         'nominal': 12.700,
         'tool': 1,
         'axis': 'X',
         'wear_direction': -1,
-        'variation': 0.002,
+        'variation': 0.0005,
     },
     1: {
-        'name': 'OD Right',
+        'name': 'OD Probe Right',
         'nominal': 12.700,
-        'tool': 1,
-        'axis': 'X',
-        'wear_direction': -1,
-        'variation': 0.002,
-    },
-    2: {
-        'name': 'Face',
-        'nominal': 50.000,
-        'tool': 2,
-        'axis': 'Z',
-        'wear_direction': -1,
-        'variation': 0.003,
-    },
-    3: {
-        'name': 'TIR',
-        'nominal': 0.000,
         'tool': None,
         'axis': None,
         'wear_direction': 0,
-        'variation': 0.004,
+        'variation': 0.0005,
     },
 }
 
@@ -56,34 +42,32 @@ def simulate_gauge_readings(
     tool_wear: 'ToolWearSimulation'
 ) -> Dict[int, float]:
     """
-    Simulate what the gauge would read.
-    
-    For each channel:
-      reading = nominal + (wear * wear_direction) + offset + variation
+    Simulate what the gauge would read after machining.
+
+    Each probe reads:
+        nominal + (wear * wear_direction) + offset + random_variation
+
+    Two probes added together = diameter.
     """
     readings = {}
-    
+
     for channel, config in CHANNEL_CONFIG.items():
         nominal = config['nominal']
         variation = random.gauss(0, config['variation'])
-        
+
         tool_effect = 0.0
-        
         if config['tool'] is not None:
             tool = config['tool']
             axis = config['axis']
-            wear_dir = config['wear_direction']
-            
             wear = tool_wear.get_wear(tool) if tool_wear else 0.0
             offset = plc.read_offset(tool, axis)
-            
-            tool_effect = (wear * wear_dir) + offset
-        
+            tool_effect = (wear * config['wear_direction']) + offset
+
         readings[channel] = nominal + tool_effect + variation
-    
+
     return readings
 
 
 def get_channel_config() -> Dict[int, dict]:
-    """Get channel configuration (for dashboard display)."""
+    """Get channel configuration."""
     return CHANNEL_CONFIG.copy()

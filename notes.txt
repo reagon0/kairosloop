@@ -118,3 +118,88 @@ CompensationConfig (one row = one rule)
 │   - offset_method                                            │
 │   - offset_resolution, max_offset_per_cycle                  │
 └─────────────────────────────────────────────────────────────┘
+
+
+
+
+
+
+TO DO:
+
+# REFACTOR NOTE: Move alarm logic to controller layer
+# Date: 2026-03-14
+# Status: TODO
+#
+# WHAT:
+#   capture.py currently calls self.driver.send_alarm() directly when parts
+#   are out of tolerance. This should move to the controller layer.
+#
+# WHY:
+#   The decision to stop a machine is a controller/shop policy, not a
+#   measurement concern. Different machines and shops have different rules:
+#     - Some never stop for a single bad part (compensate and move on)
+#     - Some stop after N consecutive failures
+#     - Some only stop when wear limit is reached
+#     - Some stop immediately on any failure (safety-critical parts)
+#
+#   The measurement layer should only report what it measured.
+#   The compensation layer should only calculate offsets.
+#   The controller layer should decide whether to stop the machine.
+#
+# CURRENT STATE:
+#   - capture.py _check_alarms() was sending alarm to PLC on every single
+#     out-of-tolerance part. This stopped the simulation/machine unnecessarily.
+#   - Changed to just log the event without stopping the machine.
+#   - Wear limit alarms still handled in _trigger_compensation() which is
+#     also in capture.py (also wrong layer, but functional for now).
+#
+# PROPOSED CHANGES:
+#   1. Add alarm policy fields to ControllerConfig model:
+#        - alarm_mode: choices ['NEVER', 'WEAR_LIMIT', 'CONSECUTIVE', 'SINGLE']
+#        - consecutive_fail_threshold: int (default 3)
+#        - auto_resume_after_comp: bool (default True)
+#
+#   2. Move alarm decision logic into controller/drivers.py BaseController:
+#        - BaseController receives compensation events
+#        - Checks alarm policy from its ControllerConfig
+#        - Decides whether to send alarm signal to PLC
+#        - Tracks consecutive fail count internally
+#
+#   3. Remove all driver.send_alarm() calls from capture.py
+#
+#   4. Wire it up: compensation events → controller layer → alarm decision
+#
+# This keeps each layer responsible for one thing:
+#   measurement/  → "what did we measure?"
+#   compensation/ → "what offset should we send?"
+#   controller/   → "should we stop the machine?"
+
+
+
+
+# REFACTOR NOTE: Remove warning_percent from Feature model
+# Date: 2026-03-14
+# Status: TODO
+#
+# WHAT:
+#   Remove the warning_percent field from measurement.Feature and all
+#   related logic (evaluate_tolerance WARN status, yellow UI elements).
+#
+# WHY:
+#   With auto-compensation, warning limits serve no purpose. The system
+#   has two meaningful zones:
+#     - Tolerance (±0.010) — is the part good or bad?
+#     - Compensation threshold (±0.005) — will the system compensate?
+#
+#   Warning at 80% of tolerance doesn't trigger any action. The
+#   compensation threshold IS the effective warning — it's where the
+#   system starts correcting. Yellow warnings are visual noise.
+#
+# CHANGES NEEDED:
+#   1. Remove warning_percent field from Feature model + migration
+#   2. Remove WARN status from evaluate_tolerance() — parts are OK or ALARM
+#   3. Remove warning-related CSS/JS from dashboard (yellow borders, etc.)
+#   4. Remove warning_percent from feature form and seed
+#   5. Remove in_warning field from Measurement model + migration
+#   6. Update stats bar — remove Warn count, just show Pass/Fail
+#   7. Keep yellow color for CLAMPED compensation events (different concept)
