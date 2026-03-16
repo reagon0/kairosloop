@@ -125,7 +125,7 @@ CompensationConfig (one row = one rule)
 
 
 TO DO:
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # REFACTOR NOTE: Move alarm logic to controller layer
 # Date: 2026-03-14
 # Status: TODO
@@ -176,7 +176,7 @@ TO DO:
 
 
 
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # REFACTOR NOTE: Remove warning_percent from Feature model
 # Date: 2026-03-14
 # Status: TODO
@@ -203,3 +203,35 @@ TO DO:
 #   5. Remove in_warning field from Measurement model + migration
 #   6. Update stats bar — remove Warn count, just show Pass/Fail
 #   7. Keep yellow color for CLAMPED compensation events (different concept)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TODO: Add part_number to Measurement model
+#
+# Add sequence_number (int) to Measurement. Pass PLC part_count through
+# capture_measurement into the record. Include in capture_result WebSocket
+# message. Show on chart X-axis and event log rows.
+# Links offsets to specific parts for traceability.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TODO: Dynamic measurement mode (TIR, runout)
+#
+# Static (current): snapshot channel value at one instant. Works for diameter, length.
+# Dynamic (needed): stream readings over one rotation, compute min/max range. Required for TIR, runout.
+#
+# Implementation:
+#   1. Add mode field to ChannelConfig: STATIC | DYNAMIC
+#   2. Add GaugeService.capture_dynamic(duration_or_signal) method
+#      - Streams N1700 continuous readings into buffer
+#      - Tracks min/max per channel over capture window
+#      - Returns {channel: max - min} instead of {channel: instant_value}
+#   3. Capture window determined by either:
+#      - PLC "revolution complete" signal (encoder/prox sensor)
+#      - Fixed time window based on known RPM
+#      - N revolutions for averaging
+#   4. CaptureService checks channel mode before reading:
+#      - STATIC channels: snapshot current value
+#      - DYNAMIC channels: run capture_dynamic, return range
+#   5. Feature formula unchanged — TIR formula is still just "A"
+#      but "A" is now the accumulated range, not an instant reading
+#   6. Add PLC signals: signal_rotation_start, signal_rotation_complete
+#   7. Simulator: add simulated dynamic readings with known eccentricity
