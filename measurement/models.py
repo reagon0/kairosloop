@@ -18,6 +18,7 @@ from django.db import models
 from django.utils import timezone
 from typing import Dict, Optional, List
 import math
+from tooling.models import ToolType
 
 
 # =============================================================================
@@ -219,6 +220,15 @@ class Feature(models.Model):
     resolution = models.IntegerField(
         default=4,
         help_text="Decimal places for display"
+    )
+
+    tool_type = models.ForeignKey(
+        'tooling.ToolType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='features',
+        help_text="Tool type that cuts this feature"
     )
     
     # === Metadata ===

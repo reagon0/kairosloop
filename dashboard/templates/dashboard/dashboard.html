@@ -3,21 +3,12 @@
 {% block title %}Dashboard - KairosLoop{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
-{% block nav_right %}
-<div class="nav-status">
-    <div class="nav-status-indicator" id="wsStatus"></div>
-    <span class="nav-status-text" id="wsStatusText">Connecting...</span>
-</div>
-<div class="nav-stat">
-    <strong>{{ machine.name }}</strong>
-</div>
-{% endblock %}
+{% block nav_right %}{% endblock %}
 
 {% block extra_styles %}
 <style>
     /* ============================================
        DASHBOARD LAYOUT
-       One screen, no scrolling, no collapsible panels.
        ============================================ */
     .dashboard {
         display: grid;
@@ -32,7 +23,6 @@
 
     /* ============================================
        PLC CONTROL STRIP
-       Compact bar with machine state + operator buttons.
        ============================================ */
     .plc-strip {
         display: flex;
@@ -93,9 +83,10 @@
     .plc-btn.start:hover:not(:disabled) { background: var(--green); color: #000; }
     .plc-btn.stop { border-color: var(--red); color: var(--red); }
     .plc-btn.stop:hover:not(:disabled) { background: var(--red); color: #000; }
-    .plc-btn.ack { border-color: var(--yellow); color: var(--yellow); opacity: 0.3; pointer-events: none; }
-    .plc-btn.ack.active { opacity: 1; pointer-events: auto; }
-    .plc-btn.ack.active:hover { background: var(--yellow); color: #000; }
+    .plc-btn.reset { border-color: var(--yellow); color: var(--yellow); }
+    .plc-btn.reset:hover:not(:disabled) { background: var(--yellow); color: #000; }
+    .plc-btn.alarm { border-color: var(--red); color: var(--red); animation: pulse 1s infinite; }
+    .plc-btn.alarm:hover:not(:disabled) { background: var(--red); color: #fff; }
 
     .plc-part-count {
         font-family: 'JetBrains Mono', monospace;
@@ -115,45 +106,113 @@
         50% { opacity: 0.5; }
     }
 
+    @keyframes pulse-red {
+        0%, 100% { background: var(--red); box-shadow: 0 0 8px var(--red); }
+        50% { background: #aa0000; box-shadow: 0 0 4px var(--red); }
+    }
+
     /* ============================================
-       STATS BAR
+       TOOL CHANGE ALERT BANNER
        ============================================ */
-    .stats-bar {
+    .tool-alert-banner {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(255, 51, 51, 0.15);
+        border: 1px solid var(--red);
+        border-radius: 4px;
+        animation: pulse 1.5s infinite;
+    }
+
+    .tool-alert-banner.visible {
         display: flex;
-        gap: 24px;
-        padding: 8px 16px;
-        background: var(--bg-panel);
-        border: 1px solid var(--border-dark);
+    }
+
+    .tool-alert-icon {
+        font-size: 18px;
+    }
+
+    .tool-alert-text {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--red);
+        font-weight: 600;
+    }
+
+    .tool-alert-detail {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-left: auto;
+    }
+
+    .tool-alert-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 6px 14px;
+        background: var(--red);
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        text-transform: uppercase;
+        border-radius: 3px;
+        font-weight: 600;
+    }
+
+    .tool-alert-btn:hover {
+        background: #ff5555;
+    }
+
+    /* ============================================
+       CONFIG WARNING BANNER
+       ============================================ */
+    .config-warning-banner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        background: rgba(255, 170, 0, 0.15);
+        border: 1px solid var(--yellow);
         border-radius: 4px;
     }
 
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
+    .config-warning-icon {
+        font-size: 18px;
     }
 
-    .stat-label {
-        font-size: 10px;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .stat-value {
+    .config-warning-text {
         font-family: 'JetBrains Mono', monospace;
-        font-size: 15px;
+        font-size: 12px;
+        color: var(--yellow);
         font-weight: 600;
-        color: var(--text-primary);
     }
 
-    .stat-value.pass { color: var(--green); }
-    .stat-value.warn { color: var(--yellow); }
-    .stat-value.fail { color: var(--red); }
+    .config-warning-detail {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-left: auto;
+    }
+
+    .config-warning-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 6px 14px;
+        background: var(--yellow);
+        border: none;
+        color: #000;
+        cursor: pointer;
+        text-transform: uppercase;
+        border-radius: 3px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .config-warning-btn:hover {
+        background: #ffdd55;
+    }
 
     /* ============================================
        MAIN CONTENT AREA
-       Two columns: left (chart + features), right (sidebar)
        ============================================ */
     .main-area {
         display: grid;
@@ -172,7 +231,7 @@
     }
 
     /* ============================================
-       TREND CHART (hero)
+       TREND CHART
        ============================================ */
     .trend-panel {
         background: var(--bg-card);
@@ -180,7 +239,7 @@
         border-radius: 4px;
         padding: 12px 16px;
         flex: 1;
-        min-height: 180px;
+        min-height: 250px;
         display: flex;
         flex-direction: column;
     }
@@ -213,7 +272,7 @@
     .trend-chart-wrap {
         flex: 1;
         position: relative;
-        min-height: 0;
+        min-height: 200px;
     }
 
     .trend-chart-wrap canvas {
@@ -299,12 +358,8 @@
 
     .feature-meta span { margin-right: 12px; }
 
-    .feature-deviation {
-        color: var(--text-secondary);
-    }
-
     /* ============================================
-       SIDEBAR (channels + tool wear + events)
+       SIDEBAR
        ============================================ */
     .sidebar {
         display: flex;
@@ -319,6 +374,11 @@
         border: 1px solid var(--border-dark);
         border-radius: 4px;
         padding: 10px 12px;
+    }
+
+    .sidebar-section.alert {
+        border-color: var(--red);
+        background: rgba(255, 51, 51, 0.05);
     }
 
     .sidebar-title {
@@ -361,15 +421,6 @@
         color: var(--blue);
     }
 
-    /* Actions */
-    .sidebar-actions {
-        display: flex;
-        gap: 6px;
-        margin-top: 8px;
-    }
-
-    .sidebar-actions .plc-btn { flex: 1; text-align: center; }
-
     /* Tool wear */
     .wear-row {
         display: flex;
@@ -380,6 +431,13 @@
     }
 
     .wear-row:last-child { border-bottom: none; }
+
+    .wear-row.blocked {
+        background: rgba(255, 51, 51, 0.1);
+        margin: 0 -12px;
+        padding: 8px 12px;
+        border-radius: 3px;
+    }
 
     .wear-tool-id {
         font-family: 'JetBrains Mono', monospace;
@@ -405,7 +463,7 @@
     }
 
     .wear-bar-fill.warning { background: var(--yellow); }
-    .wear-bar-fill.critical { background: var(--red); }
+    .wear-bar-fill.critical { background: var(--red); animation: pulse-red 1s infinite; }
 
     .wear-pct {
         font-family: 'JetBrains Mono', monospace;
@@ -415,12 +473,37 @@
         text-align: right;
     }
 
+    .wear-pct.critical {
+        color: var(--red);
+        font-weight: 700;
+    }
+
     .wear-value {
         font-family: 'JetBrains Mono', monospace;
         font-size: 10px;
         color: var(--text-dim);
         min-width: 50px;
         text-align: right;
+    }
+
+    .wear-status {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 8px;
+        padding: 2px 5px;
+        border-radius: 2px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .wear-status.change {
+        background: var(--red);
+        color: #fff;
+        animation: pulse 1s infinite;
+    }
+
+    .wear-status.warning {
+        background: var(--yellow);
+        color: #000;
     }
 
     /* Events */
@@ -434,6 +517,10 @@
     }
 
     .event-row:last-child { border-bottom: none; }
+
+    .event-row.blocked {
+        opacity: 0.7;
+    }
 
     .event-time {
         font-family: 'JetBrains Mono', monospace;
@@ -459,6 +546,7 @@
 
     .event-offset.positive { color: var(--red); }
     .event-offset.negative { color: var(--green); }
+    .event-offset.blocked { color: var(--text-dim); text-decoration: line-through; }
 
     .event-status-badge {
         font-size: 9px;
@@ -470,6 +558,7 @@
     .event-status-badge.applied { background: rgba(0, 255, 136, 0.15); color: var(--green); }
     .event-status-badge.skipped { background: rgba(136, 136, 136, 0.15); color: var(--text-dim); }
     .event-status-badge.clamped { background: rgba(255, 204, 0, 0.15); color: var(--yellow); }
+    .event-status-badge.blocked { background: rgba(255, 51, 51, 0.25); color: var(--red); }
     .event-status-badge.error { background: rgba(255, 51, 51, 0.15); color: var(--red); }
 
     /* ============================================
@@ -488,21 +577,11 @@
         color: var(--text-dim);
     }
 
-    .bottom-bar span { letter-spacing: 0.3px; }
-
-    /* ============================================
-       EMPTY STATE
-       ============================================ */
     .empty-state {
         text-align: center;
-        padding: 20px;
+        padding: 12px;
         color: var(--text-dim);
-        font-size: 12px;
-    }
-
-    .empty-state a {
-        color: var(--blue);
-        text-decoration: none;
+        font-size: 11px;
     }
 </style>
 {% endblock %}
@@ -510,7 +589,27 @@
 {% block content %}
 <div class="dashboard">
 
-    <!-- ═══════════ PLC CONTROL STRIP ═══════════ -->
+    <!-- CONFIG WARNING BANNER -->
+    {% if not config_valid %}
+    <div class="config-warning-banner">
+        <span class="config-warning-icon">⚙️</span>
+        <span class="config-warning-text">CONFIGURATION INCOMPLETE</span>
+        <span class="config-warning-detail">
+            {% for warning in config_warnings %}{{ warning }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        </span>
+        <a href="/admin/" class="config-warning-btn">FIX IN ADMIN</a>
+    </div>
+    {% endif %}
+
+    <!-- TOOL CHANGE ALERT BANNER -->
+    <div class="tool-alert-banner" id="toolAlertBanner">
+        <span class="tool-alert-icon">⚠️</span>
+        <span class="tool-alert-text">TOOL CHANGE REQUIRED</span>
+        <span class="tool-alert-detail" id="toolAlertDetail">T1 at limit - compensation blocked</span>
+        <button class="tool-alert-btn" onclick="cmdToolChanged()">CHANGE TOOL</button>
+    </div>
+
+    <!-- PLC CONTROL STRIP -->
     <div class="plc-strip">
         <div class="plc-state" id="plcState">IDLE</div>
         <div class="plc-alarm-msg" id="plcAlarm" style="display:none;"></div>
@@ -520,15 +619,17 @@
         </div>
 
         <div class="plc-buttons">
-            <button class="plc-btn start" id="btnStart" onclick="cmdStart()">Start</button>
+            <button class="plc-btn start" id="btnStart" onclick="cmdStart()" {% if not config_valid %}disabled title="Fix configuration first"{% endif %}>Start</button>
             <button class="plc-btn stop" id="btnStop" onclick="cmdStop()">Stop</button>
+            <button class="plc-btn alarm" id="btnClearAlarm" onclick="cmdClearAlarm()" style="display:none;">Clear Alarm</button>
             <button class="plc-btn" id="btnToolChanged" onclick="cmdToolChanged()">Tool Changed</button>
             <button class="plc-btn" id="btnCapture" onclick="cmdCapture()">Capture</button>
             <button class="plc-btn" id="btnMaster" onclick="cmdMaster()">Master</button>
+            <button class="plc-btn reset" id="btnReset" onclick="cmdReset()">Reset</button>
         </div>
     </div>
 
-    <!-- ═══════════ MAIN AREA ═══════════ -->
+    <!-- MAIN AREA -->
     <div class="main-area">
         <div class="main-left">
 
@@ -598,48 +699,25 @@
             </div>
 
             <!-- Tool Wear -->
-            <div class="sidebar-section">
+            <div class="sidebar-section" id="wearSection">
                 <div class="sidebar-title">Tool wear</div>
                 <div id="wearContainer">
-                    {% for rule in compensation_rules %}
-                    <div class="wear-row" id="wear-{{ rule.id }}">
-                        <span class="wear-tool-id">T{{ rule.tool_number }}</span>
-                        <div class="wear-bar-wrap">
-                            <div class="wear-bar-fill" id="wbar-{{ rule.id }}" style="width: {{ rule.wear_percentage|floatformat:0 }}%;"></div>
-                        </div>
-                        <span class="wear-pct" id="wpct-{{ rule.id }}">{{ rule.wear_percentage|floatformat:0 }}%</span>
-                        <span class="wear-value" id="wval-{{ rule.id }}">{{ rule.accumulated_offset|floatformat:4 }}</span>
-                    </div>
-                    {% empty %}
-                    <div class="empty-state">No rules</div>
-                    {% endfor %}
+                    <!-- Rendered by JS -->
                 </div>
             </div>
 
             <!-- Recent Events -->
             <div class="sidebar-section" style="flex:1; min-height:0; overflow-y:auto;">
                 <div class="sidebar-title">Recent offsets</div>
-                <div id="eventsContainer">
-                    {% for event in recent_events %}
-                    <div class="event-row">
-                        <span class="event-time">{{ event.timestamp|time:"H:i:s" }}</span>
-                        <span class="event-tool">T{{ event.rule.tool_number }}</span>
-                        <span class="event-offset {% if event.offset_applied >= 0 %}positive{% else %}negative{% endif %}">
-                            {{ event.offset_applied|floatformat:4 }}
-                        </span>
-                        <span class="event-status-badge {{ event.status|lower }}">{{ event.status }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
+                <div id="eventsContainer"></div>
             </div>
         </div>
     </div>
 
-    <!-- ═══════════ BOTTOM BAR ═══════════ -->
+    <!-- BOTTOM BAR -->
     <div class="bottom-bar">
         <span id="clockDisplay"></span>
-        <span>|</span>
-        <span id="wsInfo">WS: connecting</span>
+        <span id="compensationStatus" style="margin-left:auto;"></span>
     </div>
 </div>
 
@@ -649,8 +727,10 @@
     "channels": {{ channels_json|safe }},
     "features": {{ features_json|safe }},
     "compensation": {{ compensation_json|safe }},
+    "tool_assignments": {{ tool_assignments_json|safe }},
     "events": {{ events_json|safe }},
-    "stats": {{ stats_json|safe }}
+    "stats": {{ stats_json|safe }},
+    "trend_data": {{ trend_data_json|safe }}
 }
 </script>
 
@@ -665,73 +745,42 @@
 const SERVER = JSON.parse(document.getElementById('server-data').textContent);
 const FEATURES = SERVER.features;
 const COMPENSATION = SERVER.compensation;
-let ws = null;
-let reconnectAttempts = 0;
+let TOOL_ASSIGNMENTS = SERVER.tool_assignments || [];
+let blockedCount = 0;
 
-// Trend chart data storage: { featureId: [{ deviation, status, timestamp, compensated, offset }, ...] }
+// Trend data storage - initialize from server data
 const trendData = {};
-const accumOffsetTrend = {}; // { featureId: [accumulatedOffset, ...] }
 FEATURES.forEach(f => {
-    trendData[f.id] = f.sparkline ? f.sparkline.map(p => ({
+    const serverTrend = SERVER.trend_data[f.id] || [];
+    trendData[f.id] = serverTrend.map(p => ({
         deviation: p.deviation,
         status: p.status,
         timestamp: p.timestamp,
-        compensated: false,
-        offset: 0
-    })) : [];
-    accumOffsetTrend[f.id] = [];
+        compensated: p.offset !== null && p.offset !== 0,
+        offset: p.offset || 0,
+        offset_status: p.offset_status || null
+    }));
 });
 
 const MAX_TREND_POINTS = 100;
 
 // =============================================================================
-// WEBSOCKET
+// WEBSOCKET - Use global connection from base template
 // =============================================================================
-function connectWS() {
-    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${scheme}://${location.host}/ws/gauge/`);
-
-    ws.onopen = () => {
-        reconnectAttempts = 0;
-        document.getElementById('wsStatus').classList.add('connected');
-        document.getElementById('wsStatusText').textContent = 'Connected';
-        document.getElementById('wsInfo').textContent = 'WS: connected';
-    };
-
-    ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        handleMessage(data);
-    };
-
-    ws.onclose = () => {
-        document.getElementById('wsStatus').classList.remove('connected');
-        document.getElementById('wsStatusText').textContent = 'Disconnected';
-        document.getElementById('wsInfo').textContent = 'WS: disconnected';
-        if (reconnectAttempts < 10) {
-            reconnectAttempts++;
-            setTimeout(connectWS, 2000 * reconnectAttempts);
-        }
-    };
-}
-
 function sendCmd(command, params = {}) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'command', command, ...params }));
+    if (window.globalWS) {
+        window.globalWS.sendCmd(command, params);
     }
 }
 
-// =============================================================================
-// MESSAGE HANDLER
-// =============================================================================
-function handleMessage(data) {
+// Page-specific message handler - called by global WS
+window.handleWebSocketMessage = function(data) {
     switch (data.type) {
         case 'gauge_reading':
-            // Live hardware readings (real N1700)
             updateChannel(data.channel, data.value);
             break;
 
         case 'capture_result':
-            // Full capture result (from simulator or manual capture)
             handleCaptureResult(data);
             break;
 
@@ -739,9 +788,18 @@ function handleMessage(data) {
             handleMachineState(data);
             break;
 
-        case 'simulation_state':
-            // Simulation metadata (tool wear from simulator)
-            handleSimulationState(data);
+        case 'tool_assignment_update':
+            if (data.tool_assignment) {
+                updateToolAssignment(data.tool_assignment);
+            }
+            break;
+
+        case 'tool_assignments_state':
+            if (data.assignments) {
+                TOOL_ASSIGNMENTS.length = 0;
+                data.assignments.forEach(a => TOOL_ASSIGNMENTS.push(a));
+                renderWearBars();
+            }
             break;
 
         case 'connection_established':
@@ -755,49 +813,93 @@ function handleMessage(data) {
 }
 
 // =============================================================================
-// CAPTURE RESULT → UPDATE EVERYTHING
+// CAPTURE RESULT
 // =============================================================================
 function handleCaptureResult(data) {
-
-    // 1. Update channel values
+    // Update channel values
     if (data.channels) {
         for (const [idx, val] of Object.entries(data.channels)) {
             updateChannel(parseInt(idx), val);
         }
     }
 
-    // 2. Update feature cards + trend data
+    // Update feature cards + trend
     if (data.features) {
         data.features.forEach(f => {
             updateFeatureCard(f);
             addTrendPoint(f.id, f.deviation, f.status, f.compensation_triggered, f.offset_sent || 0);
-        });
-    }
 
-    // 4. Update trend chart
-    updateTrendChart();
-
-    // 5. Add compensation events and track accumulated offset
-    if (data.features) {
-        data.features.forEach(f => {
+            // Check if compensation should have triggered but didn't (blocked)
+            const shouldCompensate = Math.abs(f.deviation) > 0.005; // threshold
+            
             if (f.compensation_triggered && f.offset_sent !== null) {
-                // Track accumulated offset
-                COMPENSATION.forEach(rule => {
-                    if (rule.feature_name === f.name) {
-                        accumOffsets[rule.id] = (accumOffsets[rule.id] || 0) + f.offset_sent;
-                    }
-                });
-                addEventRow(f);
+                // Applied successfully
+                addEventRow(f, 'applied');
+                blockedCount = 0;
+                updateCompensationStatus('active');
+            } else if (shouldCompensate && !f.compensation_triggered) {
+                // Should have compensated but didn't - likely blocked
+                blockedCount++;
+                addEventRow(f, 'blocked');
+                updateCompensationStatus('blocked');
             }
         });
-        updateWearBars();
     }
 
-    // 6. Flash capture button
+    updateTrendChart();
+    checkToolAlerts();
+
+    // Flash capture button
     const btn = document.getElementById('btnCapture');
     btn.style.background = data.all_pass ? 'var(--green)' : data.any_alarm ? 'var(--red)' : 'var(--yellow)';
     btn.style.color = '#000';
     setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 400);
+}
+
+// =============================================================================
+// COMPENSATION STATUS
+// =============================================================================
+function updateCompensationStatus(status) {
+    const el = document.getElementById('compensationStatus');
+    if (!el) return;
+    
+    if (status === 'blocked') {
+        el.textContent = '⚠ COMPENSATION BLOCKED';
+        el.style.color = 'var(--red)';
+    } else if (status === 'active') {
+        el.textContent = '● Compensation active';
+        el.style.color = 'var(--green)';
+    } else {
+        el.textContent = '';
+    }
+}
+
+// =============================================================================
+// TOOL ALERTS
+// =============================================================================
+function checkToolAlerts() {
+    const banner = document.getElementById('toolAlertBanner');
+    const detail = document.getElementById('toolAlertDetail');
+    const section = document.getElementById('wearSection');
+    
+    let anyBlocked = false;
+    let blockedTools = [];
+    
+    TOOL_ASSIGNMENTS.forEach(ta => {
+        if (ta.usage_percentage >= 100 || ta.status === 'CHANGE') {
+            anyBlocked = true;
+            blockedTools.push(`T${ta.tool_position}`);
+        }
+    });
+    
+    if (anyBlocked) {
+        banner.classList.add('visible');
+        detail.textContent = `${blockedTools.join(', ')} at limit - compensation blocked`;
+        section.classList.add('alert');
+    } else {
+        banner.classList.remove('visible');
+        section.classList.remove('alert');
+    }
 }
 
 // =============================================================================
@@ -818,37 +920,29 @@ function updateFeatureCard(f) {
     const dev = document.getElementById(`fdev-${f.id}`);
     if (!card) return;
 
-    // Find matching config for resolution
     const cfg = FEATURES.find(x => x.id === f.id);
     const res = cfg ? cfg.resolution : 4;
-
     const status = f.status ? f.status.toLowerCase() : '';
 
-    // Value
     if (val) {
         val.textContent = f.value !== undefined ? f.value.toFixed(res) : '—';
-        val.className = `feature-value ${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : status === 'alarm' ? 'alarm' : ''}`;
+        val.className = `feature-value ${status}`;
     }
 
-    // Deviation
     if (dev && f.deviation !== undefined) {
         const d = f.deviation;
         dev.textContent = `dev: ${d >= 0 ? '+' : ''}${d.toFixed(res)}`;
     }
 
-    // Status dot
     if (dot) dot.className = `feature-status-dot ${status}`;
-
-    // Card border
     card.className = `feature-card ${status === 'warn' ? 'warn' : status === 'alarm' ? 'alarm' : ''}`;
 }
 
 // =============================================================================
-// TREND DATA + CHART
+// TREND CHART
 // =============================================================================
 function addTrendPoint(featureId, deviation, status, compensated = false, offsetSent = 0) {
     if (!trendData[featureId]) trendData[featureId] = [];
-    if (!accumOffsetTrend[featureId]) accumOffsetTrend[featureId] = [];
 
     trendData[featureId].push({
         deviation: deviation,
@@ -858,14 +952,8 @@ function addTrendPoint(featureId, deviation, status, compensated = false, offset
         offset: offsetSent
     });
 
-    // Track running accumulated offset for this feature
-    const rule = COMPENSATION.find(r => r.feature_name === (FEATURES.find(f => f.id === featureId) || {}).name);
-    const accum = rule ? Math.abs(accumOffsets[rule.id] || 0) : 0;
-    accumOffsetTrend[featureId].push(accum);
-
     if (trendData[featureId].length > MAX_TREND_POINTS) {
         trendData[featureId] = trendData[featureId].slice(-MAX_TREND_POINTS);
-        accumOffsetTrend[featureId] = accumOffsetTrend[featureId].slice(-MAX_TREND_POINTS);
     }
 }
 
@@ -880,13 +968,12 @@ function initTrendChart() {
     const upper = opt ? parseFloat(opt.dataset.upper) : null;
     const lower = opt ? parseFloat(opt.dataset.lower) : null;
 
-    // Annotation lines for tolerance
     const annotations = {};
     if (upper && !isNaN(upper)) {
         annotations.utl = { type: 'line', yMin: upper, yMax: upper, borderColor: 'rgba(255,51,51,0.9)', borderWidth: 2, borderDash: [6, 3], label: { content: 'UTL', display: true, position: 'end', font: { size: 9, family: 'JetBrains Mono' }, color: '#ff3333' } };
         annotations.ltl = { type: 'line', yMin: -Math.abs(lower || upper), yMax: -Math.abs(lower || upper), borderColor: 'rgba(255,51,51,0.9)', borderWidth: 2, borderDash: [6, 3], label: { content: 'LTL', display: true, position: 'end', font: { size: 9, family: 'JetBrains Mono' }, color: '#ff3333' } };
         annotations.nom = { type: 'line', yMin: 0, yMax: 0, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 };
-        // Compensation threshold lines
+
         const rule = COMPENSATION.length ? COMPENSATION[0] : null;
         if (rule && rule.trigger_threshold) {
             const thr = rule.trigger_threshold;
@@ -897,29 +984,28 @@ function initTrendChart() {
 
     const selectedId = sel ? parseInt(sel.value) : (FEATURES.length ? FEATURES[0].id : null);
     const points = selectedId ? (trendData[selectedId] || []) : [];
-    const accumPoints = selectedId ? (accumOffsetTrend[selectedId] || []) : [];
 
     trendChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: points.map((_, i) => i + 1),
             datasets: [{
-                    label: 'Deviation',
-                    data: points.map(p => p.deviation),
-                    borderColor: '#00ff88',
-                    borderWidth: 1.5,
-                    fill: false,
-                    tension: 0.2,
-                    pointRadius: points.map(p => p.compensated ? 7 : 3),
-                    pointBorderWidth: points.map(p => p.compensated ? 3 : 0),
-                    pointBorderColor: points.map(p => p.compensated ? '#ffffff' : 'transparent'),
-                    pointStyle: points.map(p => p.compensated ? 'rectRot' : 'circle'),
-                    pointBackgroundColor: points.map(p => {
-                        if (!p.status) return '#00ff88';
-                        const s = p.status.toLowerCase();
-                        return s === 'alarm' ? '#ff3333' : s === 'warn' ? '#ffcc00' : '#00ff88';
-                    }),
-                    pointHitRadius: 6,
+                label: 'Deviation',
+                data: points.map(p => p.deviation),
+                borderColor: '#00ff88',
+                borderWidth: 1.5,
+                fill: false,
+                tension: 0.2,
+                pointRadius: points.map(p => p.compensated ? 7 : 3),
+                pointBorderWidth: points.map(p => p.compensated ? 3 : 0),
+                pointBorderColor: points.map(p => p.compensated ? '#ffffff' : 'transparent'),
+                pointStyle: points.map(p => p.compensated ? 'rectRot' : 'circle'),
+                pointBackgroundColor: points.map(p => {
+                    if (!p.status) return '#00ff88';
+                    const s = p.status.toLowerCase();
+                    return s === 'alarm' ? '#ff3333' : s === 'warn' ? '#ffcc00' : '#00ff88';
+                }),
+                pointHitRadius: 6,
             }]
         },
         options: {
@@ -932,13 +1018,10 @@ function initTrendChart() {
                 tooltip: {
                     callbacks: {
                         label: function(ctx) {
-                            if (ctx.datasetIndex === 0) {
-                                const pt = points[ctx.dataIndex];
-                                let label = `Dev: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(4)}`;
-                                if (pt && pt.compensated) label += ` | Offset: ${pt.offset >= 0 ? '+' : ''}${pt.offset.toFixed(4)}`;
-                                return label;
-                            }
-                            return `Accum offset: ${ctx.parsed.y.toFixed(4)}`;
+                            const pt = points[ctx.dataIndex];
+                            let label = `Dev: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y.toFixed(4)}`;
+                            if (pt && pt.compensated) label += ` | Offset: ${pt.offset >= 0 ? '+' : ''}${pt.offset.toFixed(4)}`;
+                            return label;
                         }
                     }
                 }
@@ -965,11 +1048,8 @@ function updateTrendChart() {
     const sel = document.getElementById('trendFeatureSelect');
     const selectedId = sel ? parseInt(sel.value) : (FEATURES.length ? FEATURES[0].id : null);
     const points = selectedId ? (trendData[selectedId] || []) : [];
-    const accumPoints = selectedId ? (accumOffsetTrend[selectedId] || []) : [];
 
     trendChart.data.labels = points.map((_, i) => i + 1);
-
-    // Deviation dataset
     trendChart.data.datasets[0].data = points.map(p => p.deviation);
     trendChart.data.datasets[0].pointBackgroundColor = points.map(p => {
         if (!p.status) return '#00ff88';
@@ -981,12 +1061,10 @@ function updateTrendChart() {
     trendChart.data.datasets[0].pointBorderColor = points.map(p => p.compensated ? '#ffffff' : 'transparent');
     trendChart.data.datasets[0].pointStyle = points.map(p => p.compensated ? 'rectRot' : 'circle');
 
-
     trendChart.update('none');
 }
 
 function switchTrendFeature() {
-    // Rebuild chart with new feature's tolerance lines
     if (trendChart) {
         trendChart.destroy();
         trendChart = null;
@@ -995,66 +1073,144 @@ function switchTrendFeature() {
 }
 
 // =============================================================================
-// COMPENSATION / EVENTS
+// TOOL WEAR BARS (from ToolAssignment)
 // =============================================================================
-function addEventRow(f) {
+function renderWearBars() {
+    const container = document.getElementById('wearContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (TOOL_ASSIGNMENTS.length === 0) {
+        container.innerHTML = '<div class="empty-state">No tools assigned</div>';
+        return;
+    }
+
+    TOOL_ASSIGNMENTS.forEach(ta => {
+        const pct = ta.usage_percentage || 0;
+        const isBlocked = pct >= 100 || ta.status === 'CHANGE';
+        const isWarning = pct >= 80 && !isBlocked;
+        
+        const barClass = isBlocked ? 'critical' : isWarning ? 'warning' : '';
+        const rowClass = isBlocked ? 'blocked' : '';
+        const pctClass = isBlocked ? 'critical' : '';
+
+        const row = document.createElement('div');
+        row.className = `wear-row ${rowClass}`;
+        row.id = `wear-ta-${ta.id}`;
+        
+        let statusBadge = '';
+        if (isBlocked) {
+            statusBadge = '<span class="wear-status change">CHANGE</span>';
+        } else if (isWarning) {
+            statusBadge = '<span class="wear-status warning">WARN</span>';
+        }
+        
+        row.innerHTML = `
+            <span class="wear-tool-id">T${ta.tool_position}</span>
+            <div class="wear-bar-wrap">
+                <div class="wear-bar-fill ${barClass}" style="width: ${Math.min(pct, 100)}%;"></div>
+            </div>
+            <span class="wear-pct ${pctClass}">${pct.toFixed(0)}%</span>
+            <span class="wear-value">${ta.accumulated_offset.toFixed(4)}</span>
+            ${statusBadge}
+        `;
+        container.appendChild(row);
+    });
+    
+    checkToolAlerts();
+}
+
+function updateToolAssignment(ta) {
+    const idx = TOOL_ASSIGNMENTS.findIndex(t => t.id === ta.id);
+    if (idx >= 0) {
+        TOOL_ASSIGNMENTS[idx] = ta;
+    } else {
+        // New assignment (after tool change) - replace old ones for same position
+        const oldIdx = TOOL_ASSIGNMENTS.findIndex(t => t.tool_position === ta.tool_position);
+        if (oldIdx >= 0) {
+            TOOL_ASSIGNMENTS.splice(oldIdx, 1);
+        }
+        TOOL_ASSIGNMENTS.push(ta);
+    }
+    renderWearBars();
+    
+    // Handle blocked state
+    if (ta.blocked || ta.status === 'CHANGE_REQUIRED' || ta.usage_percentage >= 100) {
+        updateCompensationStatus('blocked');
+        addBlockedEvent(ta);
+    } else if (ta.usage_percentage < 10) {
+        // Reset on tool change
+        blockedCount = 0;
+        updateCompensationStatus('active');
+    }
+}
+
+function addBlockedEvent(ta) {
+    const container = document.getElementById('eventsContainer');
+    if (!container) return;
+    
+    const now = new Date();
+    const time = now.toTimeString().slice(0, 8);
+    const toolLabel = `T${ta.tool_position}`;
+    
+    const row = document.createElement('div');
+    row.className = 'event-row blocked';
+    row.innerHTML = `
+        <span class="event-time">${time}</span>
+        <span class="event-tool">${toolLabel}</span>
+        <span class="event-offset blocked">—</span>
+        <span class="event-status-badge blocked">BLOCKED</span>
+    `;
+    
+    container.insertBefore(row, container.firstChild);
+    
+    while (container.children.length > 20) {
+        container.removeChild(container.lastChild);
+    }
+}
+
+// =============================================================================
+// EVENTS
+// =============================================================================
+function addEventRow(f, status = 'applied') {
     const container = document.getElementById('eventsContainer');
     if (!container) return;
 
     const now = new Date();
     const time = now.toTimeString().slice(0, 8);
-    const offset = f.offset_sent;
-    const sign = offset >= 0 ? 'positive' : 'negative';
-    const dev = f.deviation !== undefined ? f.deviation : 0;
-    const devStr = `${dev >= 0 ? '+' : ''}${dev.toFixed(4)}`;
-
-    // Find tool number from compensation rules
-    const rule = COMPENSATION.find(r => r.feature_name === f.name);
-    const toolLabel = rule ? `T${rule.tool_number}` : 'T?';
+    const offset = f.offset_sent || 0;
+    const isBlocked = status === 'blocked';
+    
+    // Find tool position
+    const ta = TOOL_ASSIGNMENTS.find(t => t.tool_position === 1);
+    const toolLabel = ta ? `T${ta.tool_position}` : 'T1';
 
     const row = document.createElement('div');
-    row.className = 'event-row';
-    row.innerHTML = `
-        <span class="event-time">${time}</span>
-        <span class="event-tool">${toolLabel}</span>
-        <span style="font-family:'JetBrains Mono';font-size:10px;color:var(--text-dim);">${devStr}</span>
-        <span class="event-offset ${sign}">${offset >= 0 ? '+' : ''}${offset.toFixed(4)}</span>
-        <span class="event-status-badge applied">APPLIED</span>
-    `;
+    row.className = `event-row ${isBlocked ? 'blocked' : ''}`;
+    
+    if (isBlocked) {
+        row.innerHTML = `
+            <span class="event-time">${time}</span>
+            <span class="event-tool">${toolLabel}</span>
+            <span class="event-offset blocked">—</span>
+            <span class="event-status-badge blocked">BLOCKED</span>
+        `;
+    } else {
+        const sign = offset >= 0 ? 'positive' : 'negative';
+        row.innerHTML = `
+            <span class="event-time">${time}</span>
+            <span class="event-tool">${toolLabel}</span>
+            <span class="event-offset ${sign}">${offset >= 0 ? '+' : ''}${offset.toFixed(4)}</span>
+            <span class="event-status-badge applied">APPLIED</span>
+        `;
+    }
 
     container.insertBefore(row, container.firstChild);
 
     while (container.children.length > 20) {
         container.removeChild(container.lastChild);
     }
-}
-
-function handleSimulationState(data) {
-    // We no longer use simulation tool wear for the dashboard.
-    // Tool wear bars are updated from compensation data in handleCaptureResult.
-}
-
-// Track accumulated offset per compensation rule (the real "tool life" indicator)
-const accumOffsets = {};
-COMPENSATION.forEach(r => { accumOffsets[r.id] = r.accumulated_offset || 0; });
-
-function updateWearBars() {
-    COMPENSATION.forEach(rule => {
-        const accum = Math.abs(accumOffsets[rule.id] || 0);
-        const limit = rule.wear_limit || 0.1;
-        const pct = (accum / limit) * 100;
-
-        const bar = document.getElementById(`wbar-${rule.id}`);
-        const pctEl = document.getElementById(`wpct-${rule.id}`);
-        const valEl = document.getElementById(`wval-${rule.id}`);
-
-        if (bar) {
-            bar.style.width = `${Math.min(pct, 100)}%`;
-            bar.className = `wear-bar-fill ${pct >= 100 ? 'critical' : pct >= 75 ? 'warning' : ''}`;
-        }
-        if (pctEl) pctEl.textContent = `${pct.toFixed(0)}%`;
-        if (valEl) valEl.textContent = accum.toFixed(4);
-    });
 }
 
 // =============================================================================
@@ -1065,6 +1221,7 @@ function handleMachineState(data) {
     const stateEl = document.getElementById('plcState');
     const alarmEl = document.getElementById('plcAlarm');
     const partEl = document.getElementById('plcPartCount');
+    const clearAlarmBtn = document.getElementById('btnClearAlarm');
 
     if (stateEl) {
         stateEl.textContent = state;
@@ -1074,8 +1231,10 @@ function handleMachineState(data) {
     if (data.alarm_active && data.alarm_message) {
         alarmEl.textContent = data.alarm_message;
         alarmEl.style.display = '';
+        if (clearAlarmBtn) clearAlarmBtn.style.display = '';
     } else {
         alarmEl.style.display = 'none';
+        if (clearAlarmBtn) clearAlarmBtn.style.display = 'none';
     }
 
     if (data.part_count_today !== undefined && partEl) {
@@ -1087,7 +1246,6 @@ function handleMachineState(data) {
 // PLC COMMANDS
 // =============================================================================
 function cmdStart() {
-    // Start simulation + machine
     sendCmd('simulation_start');
     sendCmd('machine_start');
 }
@@ -1099,18 +1257,51 @@ function cmdStop() {
 
 function cmdCapture() { sendCmd('capture'); }
 function cmdMaster() { sendCmd('master_all'); }
+
 function cmdToolChanged() {
-    if (!confirm('Reset accumulated offset? Only do this after physically changing the tool insert.')) return;
+    if (!confirm('Reset tool offset tracking? Only do this after physically changing the tool insert.')) return;
     sendCmd('machine_change_tool', { tool: 1 });
-    COMPENSATION.forEach(r => { accumOffsets[r.id] = 0; });
-    updateWearBars();
+    
+    // Clear events display
+    const container = document.getElementById('eventsContainer');
+    if (container) container.innerHTML = '';
+}
+
+function cmdReset() {
+    if (!confirm('Reset simulation? This will clear:\n• All measurements (trend line)\n• Compensation events\n• Tool wear tracking\n\nContinue?')) return;
+    
+    sendCmd('simulation_reset');
+    
+    // Clear local UI - reset trendData for all features
+    FEATURES.forEach(f => {
+        trendData[f.id] = [];
+    });
+    
+    if (trendChart) {
+        trendChart.data.labels = [];
+        trendChart.data.datasets[0].data = [];
+        trendChart.data.datasets[1].data = [];
+        trendChart.update('none');
+    }
+    
+    const eventsContainer = document.getElementById('eventsContainer');
+    if (eventsContainer) eventsContainer.innerHTML = '';
+    
+    // Reset tool wear bars
+    TOOL_ASSIGNMENTS = [];
+    renderWearBars();
+    checkToolAlerts();
+    
+    updateCompensationStatus('none');
+}
+
+function cmdClearAlarm() {
+    sendCmd('machine_ack_alarm');
 }
 
 // =============================================================================
-// INIT ON LOAD
+// INIT
 // =============================================================================
-
-// Initialize feature cards from server data
 FEATURES.forEach(f => {
     if (f.last_value !== null && f.last_value !== undefined) {
         updateFeatureCard({
@@ -1124,13 +1315,13 @@ FEATURES.forEach(f => {
 
 // Clock
 setInterval(() => {
-    const now = new Date();
-    document.getElementById('clockDisplay').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    document.getElementById('clockDisplay').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 }, 1000);
 document.getElementById('clockDisplay').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-// Chart + WebSocket
+// Init
 initTrendChart();
-connectWS();
+renderWearBars();
+checkToolAlerts();
 </script>
 {% endblock %}

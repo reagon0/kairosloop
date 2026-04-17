@@ -1,0 +1,880 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Setup - KairosLoop{% endblock %}
+{% block nav_setup %}active{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .setup-container {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .setup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .setup-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .setup-subtitle {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+    
+    /* Warnings Banner */
+    .warnings-banner {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .warnings-banner.has-errors {
+        border-color: var(--red);
+        background: rgba(255, 51, 51, 0.05);
+    }
+    
+    .warnings-banner.has-warnings {
+        border-color: var(--yellow);
+        background: rgba(255, 204, 0, 0.05);
+    }
+    
+    .warnings-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .warnings-icon {
+        font-size: 18px;
+    }
+    
+    .warnings-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .warnings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .warning-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        padding: 8px 12px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+    }
+    
+    .warning-item.error { color: var(--red); }
+    .warning-item.warning { color: var(--yellow); }
+    
+    .warning-category {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        background: var(--bg-card);
+        border-radius: 2px;
+        color: var(--text-dim);
+    }
+    
+    .all-good {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--green);
+        font-size: 13px;
+    }
+    
+    /* Sections */
+    .setup-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    
+    @media (max-width: 1200px) {
+        .setup-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .setup-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .setup-section.full-width {
+        grid-column: 1 / -1;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 16px;
+        background: var(--bg-panel);
+        border-bottom: 1px solid var(--border-dark);
+    }
+    
+    .section-title {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-primary);
+    }
+    
+    .section-count {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        background: var(--bg-recessed);
+        padding: 3px 8px;
+        border-radius: 3px;
+    }
+    
+    .section-body {
+        padding: 0;
+    }
+    
+    .section-empty {
+        padding: 24px;
+        text-align: center;
+        color: var(--text-dim);
+        font-size: 13px;
+    }
+    
+    /* Config Rows */
+    .config-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-dark);
+        transition: background 0.15s;
+    }
+    
+    .config-row:last-child {
+        border-bottom: none;
+    }
+    
+    .config-row:hover {
+        background: var(--bg-panel);
+    }
+    
+    .config-row.inactive {
+        opacity: 0.5;
+    }
+    
+    .config-row.inactive:hover {
+        opacity: 0.8;
+    }
+    
+    .config-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .config-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .config-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .config-badge.active {
+        background: rgba(0, 255, 136, 0.15);
+        color: var(--green);
+    }
+    
+    .config-badge.inactive {
+        background: var(--bg-recessed);
+        color: var(--text-dim);
+    }
+    
+    .config-badge.warning {
+        background: rgba(255, 204, 0, 0.15);
+        color: var(--yellow);
+    }
+    
+    .config-badge.error {
+        background: rgba(255, 51, 51, 0.15);
+        color: var(--red);
+    }
+    
+    .config-details {
+        font-size: 12px;
+        color: var(--text-secondary);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .config-detail {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .config-detail-label {
+        color: var(--text-dim);
+    }
+    
+    .config-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 16px;
+    }
+    
+    /* Toggle Switch */
+    .toggle-switch {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        cursor: pointer;
+    }
+    
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .toggle-slider {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg-recessed);
+        border: 1px solid var(--border-dark);
+        border-radius: 11px;
+        transition: all 0.2s;
+    }
+    
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 2px;
+        bottom: 2px;
+        background: var(--text-dim);
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+    
+    .toggle-switch input:checked + .toggle-slider {
+        background: var(--green-dim);
+        border-color: var(--green);
+    }
+    
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(18px);
+        background: var(--green);
+    }
+    
+    .toggle-switch:hover .toggle-slider {
+        border-color: var(--border-light);
+    }
+    
+    /* Edit Link */
+    .edit-link {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text-dim);
+        text-decoration: none;
+        padding: 4px 8px;
+        border: 1px solid var(--border-dark);
+        border-radius: 3px;
+        transition: all 0.15s;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .edit-link:hover {
+        color: var(--text-primary);
+        border-color: var(--border-light);
+        background: var(--bg-recessed);
+    }
+    
+    /* Add Button */
+    .add-btn {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--green);
+        text-decoration: none;
+        padding: 4px 10px;
+        border: 1px solid var(--green);
+        border-radius: 3px;
+        transition: all 0.15s;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .add-btn:hover {
+        background: var(--green);
+        color: #000;
+    }
+    
+    /* Relationship Arrow */
+    .relationship {
+        color: var(--text-dim);
+        margin: 0 6px;
+    }
+    
+    /* Channel list */
+    .channel-list {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .channel-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 3px 8px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+        color: var(--text-secondary);
+    }
+    
+    /* Feature inputs */
+    .feature-inputs {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    
+    .input-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 2px 6px;
+        background: var(--bg-recessed);
+        border-radius: 2px;
+        color: var(--blue);
+    }
+    
+    /* Tool position badge */
+    .tool-position {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+        color: var(--text-secondary);
+        min-width: 32px;
+        text-align: center;
+    }
+    
+    /* Usage bar (for tool wear) */
+    .usage-bar-mini {
+        width: 60px;
+        height: 6px;
+        background: var(--bg-recessed);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .usage-bar-mini-fill {
+        height: 100%;
+        background: var(--green);
+        transition: width 0.3s, background 0.3s;
+    }
+    
+    .usage-bar-mini-fill.warning {
+        background: var(--yellow);
+    }
+    
+    .usage-bar-mini-fill.danger {
+        background: var(--red);
+    }
+    
+    /* Toast notification */
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 12px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-dark);
+        border-radius: 4px;
+        font-size: 13px;
+        color: var(--text-primary);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transform: translateY(100px);
+        opacity: 0;
+        transition: all 0.3s;
+        z-index: 1000;
+    }
+    
+    .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    
+    .toast.success {
+        border-color: var(--green);
+    }
+    
+    .toast.error {
+        border-color: var(--red);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    <div class="setup-header">
+        <div>
+            <div class="setup-title">System Setup</div>
+            <div class="setup-subtitle">Configure measurement, tooling, and compensation</div>
+        </div>
+    </div>
+    
+    <!-- Validation Warnings -->
+    <div class="warnings-banner {% if error_count %}has-errors{% elif warning_count %}has-warnings{% endif %}">
+        {% if warnings %}
+        <div class="warnings-header">
+            <span class="warnings-icon">{% if error_count %}⚠{% else %}⚡{% endif %}</span>
+            <span class="warnings-title">
+                {% if error_count %}{{ error_count }} Error{{ error_count|pluralize }}{% endif %}
+                {% if error_count and warning_count %}, {% endif %}
+                {% if warning_count %}{{ warning_count }} Warning{{ warning_count|pluralize }}{% endif %}
+            </span>
+        </div>
+        <div class="warnings-list">
+            {% for w in warnings %}
+            <div class="warning-item {{ w.level }}">
+                <span class="warning-category">{{ w.category }}</span>
+                <span>{{ w.message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="all-good">
+            <span>✓</span>
+            <span>Configuration valid - ready to run</span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="setup-grid">
+        <!-- Machine & Controller -->
+        <div class="setup-section">
+            <div class="section-header">
+                <span class="section-title">Machine & Controller</span>
+                <a href="/admin/controller/controllerconfig/add/" class="add-btn">+ Add</a>
+            </div>
+            <div class="section-body">
+                {% for controller in controllers %}
+                <div class="config-row {% if not controller.active %}inactive{% endif %}">
+                    <div class="config-info">
+                        <div class="config-name">
+                            {% if controller.machine %}{{ controller.machine.name }} <span class="relationship">›</span>{% endif %}
+                            {{ controller.name }}
+                            <span class="config-badge {% if controller.active %}active{% else %}inactive{% endif %}">
+                                {% if controller.active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        <div class="config-details">
+                            <span class="config-detail">
+                                <span class="config-detail-label">Type:</span> {{ controller.controller_type }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Protocol:</span> {{ controller.protocol }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Host:</span> {{ controller.host }}:{{ controller.port }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">On Limit:</span> {{ controller.get_on_tool_limit_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" {% if controller.active %}checked{% endif %} 
+                                   onchange="toggleController({{ controller.id }}, this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <a href="/admin/controller/controllerconfig/{{ controller.id }}/change/" class="edit-link">Edit</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="section-empty">No controllers configured</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Gauge & Channels -->
+        <div class="setup-section">
+            <div class="section-header">
+                <span class="section-title">Gauge & Channels</span>
+                <a href="/admin/measurement/gaugeconfig/add/" class="add-btn">+ Add</a>
+            </div>
+            <div class="section-body">
+                {% for gauge in gauges %}
+                <div class="config-row {% if not gauge.active %}inactive{% endif %}">
+                    <div class="config-info">
+                        <div class="config-name">
+                            {{ gauge.name }}
+                            <span class="config-badge {% if gauge.active %}active{% else %}inactive{% endif %}">
+                                {% if gauge.active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        <div class="config-details">
+                            <span class="config-detail">
+                                <span class="config-detail-label">Type:</span> {{ gauge.gauge_type }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Port:</span> {{ gauge.serial_port }}
+                            </span>
+                        </div>
+                        <div class="channel-list" style="margin-top: 8px;">
+                            {% for ch in gauge.channels.all %}
+                            <span class="channel-tag">CH{{ ch.channel_index }}: {{ ch.label }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" {% if gauge.active %}checked{% endif %}
+                                   onchange="toggleGauge({{ gauge.id }}, this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <a href="/admin/measurement/gaugeconfig/{{ gauge.id }}/change/" class="edit-link">Edit</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="section-empty">No gauges configured</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Features -->
+        <div class="setup-section">
+            <div class="section-header">
+                <span class="section-title">Features</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="section-count">{{ features|length }} total</span>
+                    <a href="/admin/measurement/feature/add/" class="add-btn">+ Add</a>
+                </div>
+            </div>
+            <div class="section-body">
+                {% for feature in features %}
+                <div class="config-row {% if not feature.active %}inactive{% endif %}">
+                    <div class="config-info">
+                        <div class="config-name">
+                            {{ feature.name }}
+                            <span class="config-badge {% if feature.active %}active{% else %}inactive{% endif %}">
+                                {% if feature.active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                        <div class="config-details">
+                            <span class="config-detail">
+                                <span class="config-detail-label">Nominal:</span> {{ feature.nominal }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Tolerance:</span> 
+                                {% if feature.tolerance_mode == 'bilateral' %}
+                                    ±{{ feature.tolerance_upper }}
+                                {% else %}
+                                    +{{ feature.tolerance_upper }}/-{{ feature.tolerance_lower }}
+                                {% endif %}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Unit:</span> {{ feature.unit }}
+                            </span>
+                        </div>
+                        <div class="feature-inputs" style="margin-top: 6px;">
+                            {% for inp in feature.inputs.all %}
+                            <span class="input-tag">{{ inp.label }} (CH{{ inp.channel.channel_index }})</span>
+                            {% empty %}
+                            <span style="color: var(--red); font-size: 11px;">⚠ No inputs</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" {% if feature.active %}checked{% endif %}
+                                   onchange="toggleFeature({{ feature.id }}, this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <a href="/admin/measurement/feature/{{ feature.id }}/change/" class="edit-link">Edit</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="section-empty">No features configured</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Tool Assignments -->
+        <div class="setup-section">
+            <div class="section-header">
+                <span class="section-title">Tool Assignments</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="section-count">{{ tool_assignments|length }} active</span>
+                    <a href="/admin/tooling/toolassignment/add/" class="add-btn">+ Add</a>
+                </div>
+            </div>
+            <div class="section-body">
+                {% for assignment in tool_assignments %}
+                <div class="config-row">
+                    <div class="config-info">
+                        <div class="config-name">
+                            <span class="tool-position">T{{ assignment.tool_position }}</span>
+                            {{ assignment.tool_instance.tool_type.name }}
+                            <span class="config-badge {% if assignment.status == 'ACTIVE' %}active{% elif assignment.status == 'WARNING' %}warning{% else %}error{% endif %}">
+                                {{ assignment.status }}
+                            </span>
+                        </div>
+                        <div class="config-details">
+                            <span class="config-detail">
+                                <span class="config-detail-label">Controller:</span> {{ assignment.controller.name }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Offset:</span> {{ assignment.accumulated_offset|floatformat:4 }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Cycles:</span> {{ assignment.cycle_count }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        {% with usage=assignment.usage_percentage %}
+                        <div class="usage-bar-mini">
+                            <div class="usage-bar-mini-fill {% if usage > 90 %}danger{% elif usage > 75 %}warning{% endif %}" 
+                                 style="width: {{ usage }}%"></div>
+                        </div>
+                        <span style="font-family: 'JetBrains Mono'; font-size: 11px; color: var(--text-dim); min-width: 35px;">
+                            {{ usage|floatformat:0 }}%
+                        </span>
+                        {% endwith %}
+                        <a href="/admin/tooling/toolassignment/{{ assignment.id }}/change/" class="edit-link">Edit</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="section-empty">No tool assignments</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Compensation Rules -->
+        <div class="setup-section full-width">
+            <div class="section-header">
+                <span class="section-title">Compensation Rules</span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="section-count">{{ compensation_rules|length }} rules</span>
+                    <a href="/admin/compensation/compensationrule/add/" class="add-btn">+ Add</a>
+                </div>
+            </div>
+            <div class="section-body">
+                {% for rule in compensation_rules %}
+                <div class="config-row {% if not rule.active %}inactive{% endif %}">
+                    <div class="config-info">
+                        <div class="config-name">
+                            {{ rule.feature.name }}
+                            <span class="relationship">›</span>
+                            {% if rule.tool_assignment %}
+                            T{{ rule.tool_assignment.tool_position }} {{ rule.offset_axis }}-axis
+                            {% else %}
+                            <span style="color: var(--red);">No tool assigned</span>
+                            {% endif %}
+                            <span class="config-badge {% if rule.active %}active{% else %}inactive{% endif %}">
+                                {% if rule.active %}Enabled{% else %}Disabled{% endif %}
+                            </span>
+                        </div>
+                        <div class="config-details">
+                            <span class="config-detail">
+                                <span class="config-detail-label">Trigger:</span> {{ rule.trigger_threshold }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Max/Cycle:</span> {{ rule.max_per_cycle }}
+                            </span>
+                            <span class="config-detail">
+                                <span class="config-detail-label">Scale:</span> {{ rule.scale_factor }}
+                            </span>
+                            {% if rule.tool_assignment %}
+                            <span class="config-detail">
+                                <span class="config-detail-label">Tool Type:</span> {{ rule.tool_assignment.tool_instance.tool_type.name }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="config-actions">
+                        <label class="toggle-switch">
+                            <input type="checkbox" {% if rule.active %}checked{% endif %}
+                                   onchange="toggleRule({{ rule.id }}, this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <a href="/admin/compensation/compensationrule/{{ rule.id }}/change/" class="edit-link">Edit</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="section-empty">No compensation rules configured</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+function toggleFeature(id, checkbox) {
+    fetch(`/setup/toggle/feature/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            checkbox.closest('.config-row').classList.toggle('inactive', !data.active);
+            checkbox.closest('.config-row').querySelector('.config-badge').textContent = data.active ? 'Active' : 'Inactive';
+            checkbox.closest('.config-row').querySelector('.config-badge').className = 'config-badge ' + (data.active ? 'active' : 'inactive');
+        } else {
+            showToast(data.message, 'error');
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(() => {
+        showToast('Request failed', 'error');
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+function toggleRule(id, checkbox) {
+    fetch(`/setup/toggle/rule/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            checkbox.closest('.config-row').classList.toggle('inactive', !data.active);
+            checkbox.closest('.config-row').querySelector('.config-badge').textContent = data.active ? 'Enabled' : 'Disabled';
+            checkbox.closest('.config-row').querySelector('.config-badge').className = 'config-badge ' + (data.active ? 'active' : 'inactive');
+        } else {
+            showToast(data.message, 'error');
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(() => {
+        showToast('Request failed', 'error');
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+function toggleController(id, checkbox) {
+    fetch(`/setup/toggle/controller/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            checkbox.closest('.config-row').classList.toggle('inactive', !data.active);
+            checkbox.closest('.config-row').querySelector('.config-badge').textContent = data.active ? 'Active' : 'Inactive';
+            checkbox.closest('.config-row').querySelector('.config-badge').className = 'config-badge ' + (data.active ? 'active' : 'inactive');
+        } else {
+            showToast(data.message, 'error');
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(() => {
+        showToast('Request failed', 'error');
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+function toggleGauge(id, checkbox) {
+    fetch(`/setup/toggle/gauge/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message);
+            checkbox.closest('.config-row').classList.toggle('inactive', !data.active);
+            checkbox.closest('.config-row').querySelector('.config-badge').textContent = data.active ? 'Active' : 'Inactive';
+            checkbox.closest('.config-row').querySelector('.config-badge').className = 'config-badge ' + (data.active ? 'active' : 'inactive');
+        } else {
+            showToast(data.message, 'error');
+            checkbox.checked = !checkbox.checked;
+        }
+    })
+    .catch(() => {
+        showToast('Request failed', 'error');
+        checkbox.checked = !checkbox.checked;
+    });
+}
+</script>
+{% endblock %}

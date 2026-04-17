@@ -135,6 +135,7 @@ Nav structure:
             height: 8px;
             border-radius: 50%;
             background: var(--text-dim);
+            transition: all 0.3s ease;
         }
         
         .nav-status-indicator.connected {
@@ -153,6 +154,25 @@ Nav structure:
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        .nav-machine-state {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 6px 12px;
+            background: var(--bg-recessed);
+            border: 1px solid var(--border-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .nav-machine-state.idle { color: var(--text-secondary); }
+        .nav-machine-state.running { color: var(--green); border-color: var(--green); }
+        .nav-machine-state.alarm { color: var(--red); border-color: var(--red); animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         .nav-stat {
@@ -281,12 +301,18 @@ Nav structure:
             <a href="{% url 'dashboard:dashboard' %}" class="nav-brand">KAIROS<span>LOOP</span></a>
             <div class="nav-links">
                 <a href="{% url 'dashboard:dashboard' %}" class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
-                <a href="{% url 'measurement:feature_list' %}" class="nav-link {% block nav_measurement %}{% endblock %}">Measurement</a>
-                <a href="{% url 'compensation:rule_list' %}" class="nav-link {% block nav_compensation %}{% endblock %}">Compensation</a>
-                <a href="{% url 'controller:controller_list' %}" class="nav-link {% block nav_controller %}{% endblock %}">Controller</a>
+                <a href="{% url 'dashboard:setup' %}" class="nav-link {% block nav_setup %}{% endblock %}">Setup</a>
             </div>
         </div>
         <div class="nav-right">
+            {% if nav_machine %}
+            <div class="nav-stat">{{ nav_machine }}</div>
+            {% endif %}
+            <div class="nav-machine-state idle" id="navMachineState">IDLE</div>
+            <div class="nav-status">
+                <div class="nav-status-indicator" id="navWsStatus"></div>
+                <span class="nav-status-text" id="navWsStatusText">Connecting...</span>
+            </div>
             {% block nav_right %}{% endblock %}
         </div>
     </nav>
@@ -303,6 +329,102 @@ Nav structure:
     {% endif %}
     
     {% block content %}{% endblock %}
+    
+    <!-- Global WebSocket Connection -->
+    <script>
+    (function() {
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+        
+        function connectGlobalWS() {
+            const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${scheme}://${location.host}/ws/gauge/`);
+            
+            ws.onopen = () => {
+                reconnectAttempts = 0;
+                const indicator = document.getElementById('navWsStatus');
+                const text = document.getElementById('navWsStatusText');
+                if (indicator) indicator.classList.add('connected');
+                if (text) text.textContent = 'Connected';
+            };
+            
+            ws.onclose = () => {
+                const indicator = document.getElementById('navWsStatus');
+                const text = document.getElementById('navWsStatusText');
+                if (indicator) indicator.classList.remove('connected');
+                if (text) text.textContent = 'Disconnected';
+                
+                // Reconnect
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connectGlobalWS, Math.min(1000 * reconnectAttempts, 5000));
+                }
+            };
+            
+            ws.onerror = () => {
+                const indicator = document.getElementById('navWsStatus');
+                if (indicator) {
+                    indicator.classList.remove('connected');
+                    indicator.classList.add('error');
+                }
+            };
+            
+            ws.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    
+                    // Handle machine state globally
+                    if (data.type === 'machine_state') {
+                        updateNavMachineState(data);
+                    }
+                    
+                    // Dispatch to page-specific handler if exists
+                    if (typeof window.handleWebSocketMessage === 'function') {
+                        window.handleWebSocketMessage(data);
+                    }
+                } catch (err) {
+                    console.error('WS message error:', err);
+                }
+            };
+        }
+        
+        function updateNavMachineState(data) {
+            const stateEl = document.getElementById('navMachineState');
+            if (!stateEl) return;
+            
+            const state = data.state || 'IDLE';
+            stateEl.textContent = state;
+            stateEl.className = 'nav-machine-state ' + state.toLowerCase();
+            
+            // Show alarm message if active
+            if (data.alarm_active && data.alarm_message) {
+                stateEl.textContent = 'ALARM';
+                stateEl.title = data.alarm_message;
+            } else {
+                stateEl.title = '';
+            }
+        }
+        
+        // Expose for page-specific use
+        window.globalWS = {
+            send: (data) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify(data));
+                }
+            },
+            sendCmd: (command, params = {}) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'command', command, ...params }));
+                }
+            },
+            isConnected: () => ws && ws.readyState === WebSocket.OPEN
+        };
+        
+        // Connect on page load
+        connectGlobalWS();
+    })();
+    </script>
     
     {% block extra_scripts %}{% endblock %}
 </body>

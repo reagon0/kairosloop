@@ -235,3 +235,7 @@ TO DO:
 #      but "A" is now the accumulated range, not an instant reading
 #   6. Add PLC signals: signal_rotation_start, signal_rotation_complete
 #   7. Simulator: add simulated dynamic readings with known eccentricity
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Update Software, PLC is the wrong term i think

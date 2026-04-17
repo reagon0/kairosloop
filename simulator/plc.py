@@ -42,7 +42,7 @@ class TestPLC:
         plc.stop()
     """
     
-    def __init__(self, cycle_time: float = 5.0):
+    def __init__(self, cycle_time: float = 1.0):
         # Configuration
         self.cycle_time = cycle_time  # Seconds per part
         
@@ -157,16 +157,24 @@ class TestPLC:
             return 0.0
         return self._tool_offsets[tool].get(axis, 0.0)
     
-    def receive_alarm(self, message: str):
-        """Receive ALARM signal from KairosLoop."""
+    def trigger_alarm(self, message: str):
+        """
+        Trigger an alarm and stop the machine.
+        
+        Called by KairosLoop when tool limit reached (if configured to ALARM).
+        """
         self._state = MachineState.ALARM
         self._alarm_active = True
         self._alarm_message = message
         self._cycle_active = False
         
-        logger.warning(f"[TestPLC] ALARM: {message}")
+        logger.warning(f"[TestPLC] ALARM TRIGGERED: {message}")
         self._broadcast_state()
         self._emit_signal(Signal.STATE_CHANGE, {'state': self._state.value})
+    
+    def receive_alarm(self, message: str):
+        """Receive ALARM signal from KairosLoop (alias for trigger_alarm)."""
+        self.trigger_alarm(message)
     
     def receive_warning(self, message: str):
         """Receive WARNING signal from KairosLoop."""

@@ -12,9 +12,12 @@ Flow:
     2. Evaluate feature formulas
     3. Check tolerances
     4. Save Measurement records
-    5. Trigger compensation if needed
+    5. Emit signals (compensation subscribes separately)
     6. Broadcast results via WebSocket
     7. Return results
+
+NOTE: Compensation logic has been moved to compensation/engine.py
+      This module now emits signals that compensation subscribes to.
 """
 
 import logging
@@ -30,6 +33,7 @@ from .models import (
     GaugeConfig, ChannelConfig,
     ToleranceMode
 )
+from .signals import measurement_captured, capture_completed
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +64,12 @@ class FeatureResult:
     formula: str
     inputs_used: Dict[str, float]  # {'A': 0.012, 'B': -0.003}
     measurement_id: Optional[int] = None  # Set after saving
+    
+    # Set by compensation signal handler
     compensation_triggered: bool = False
     offset_sent: Optional[float] = None
+    accumulated_after: Optional[float] = None
+    usage_percentage: Optional[float] = None
 
 
 @dataclass
@@ -116,6 +124,8 @@ class CaptureResult:
                     'measurement_id': r.measurement_id,
                     'compensation_triggered': r.compensation_triggered,
                     'offset_sent': r.offset_sent,
+                    'accumulated_after': r.accumulated_after,
+                    'usage_percentage': r.usage_percentage,
                 }
                 for r in self.feature_results
             ],
@@ -142,8 +152,6 @@ class CaptureService:
     
     def __init__(self):
         self._gauge_service = None
-        self._driver = None
-        self._plc = None
     
     @property
     def gauge_service(self):
@@ -152,31 +160,6 @@ class CaptureService:
             from .services import get_service
             self._gauge_service = get_service()
         return self._gauge_service
-    
-    @property
-    def driver(self):
-        """Get the controller driver (lazy init with TestPLC)."""
-        if self._driver is None:
-            from controller.drivers import TestPLCDriver
-            from simulator.plc import get_test_plc
-            from dashboard.consumers import broadcast_machine_state
-            
-            self._plc = get_test_plc()
-            self._driver = TestPLCDriver(plc=self._plc, verbose=True)
-            self._driver.set_plc(self._plc)
-            self._driver.connect()
-            
-            # Wire PLC state changes to WebSocket broadcast
-            self._plc.set_state_callback(broadcast_machine_state)
-        return self._driver
-    
-    @property
-    def plc(self):
-        """Get the TestPLC instance."""
-        if self._plc is None:
-            # Accessing driver will init both
-            _ = self.driver
-        return self._plc
     
     def capture(
         self,
@@ -195,7 +178,7 @@ class CaptureService:
             feature_ids: List of feature IDs to evaluate. If None, evaluates all active features.
             source: Source identifier ('manual', 'auto', 'simulator', etc.)
             save_to_db: Whether to save Measurement records to database.
-            trigger_compensation: Whether to trigger compensation rules.
+            trigger_compensation: Whether to emit signals for compensation processing.
             broadcast: Whether to broadcast results via WebSocket.
         
         Returns:
@@ -232,6 +215,8 @@ class CaptureService:
         
         # Evaluate each feature
         feature_results = []
+        measurements = []
+        
         for feature in features:
             result = self._evaluate_feature(feature, channel_values)
             if result:
@@ -239,12 +224,11 @@ class CaptureService:
         
         # Save to database
         if save_to_db and feature_results:
-            self._save_measurements(feature_results, channel_values, source, timestamp)
+            measurements = self._save_measurements(feature_results, channel_values, source, timestamp)
         
-        # Trigger compensation and alarms
-        if trigger_compensation and feature_results:
-            self._trigger_compensation(feature_results)
-            self._check_alarms(feature_results)
+        # Emit signals for compensation (subscribers handle the rest)
+        if trigger_compensation and measurements:
+            self._emit_measurement_signals(measurements, feature_results)
         
         # Build result
         capture_result = CaptureResult(
@@ -254,6 +238,13 @@ class CaptureService:
             channel_readings=channel_values,
             feature_results=feature_results,
             errors=errors,
+        )
+        
+        # Emit capture completed signal
+        capture_completed.send(
+            sender=self.__class__,
+            measurements=measurements,
+            capture_result=capture_result
         )
         
         # Broadcast via WebSocket
@@ -353,8 +344,10 @@ class CaptureService:
         channel_values: Dict[int, float],
         source: str,
         timestamp: datetime,
-    ):
+    ) -> List[Measurement]:
         """Save measurement records to database."""
+        measurements = []
+        
         for result in results:
             try:
                 measurement = Measurement.objects.create(
@@ -369,108 +362,48 @@ class CaptureService:
                     source=source,
                 )
                 result.measurement_id = measurement.id
+                measurements.append(measurement)
             except Exception as e:
                 logger.exception(f"Error saving measurement for {result.feature_name}")
-    
-    def _trigger_compensation(self, results: List[FeatureResult]):
-        """Trigger compensation rules for out-of-tolerance features."""
-        try:
-            from compensation.models import CompensationRule, CompensationEvent
-            
-            for result in results:
-                # Let the compensation rule decide based on its own threshold.
-                # Don't pre-filter by tolerance status.
-                
-                # Get active compensation rules for this feature
-                rules = CompensationRule.objects.filter(
-                    feature_id=result.feature_id,
-                    active=True
-                ).select_related('controller')
-                
-                for rule in rules:
-                    try:
-                        # Calculate offset (returns dict)
-                        calc_result = rule.calculate_offset(result.deviation)
-                        
-                        if not calc_result['should_compensate']:
-                            logger.info(f"Rule {rule.id}: skipped - {calc_result['reason']}")
-                            continue
-                        
-                        # Extract the offset to apply
-                        offset = calc_result['offset_to_apply']
-                        
-                        # Check wear limit
-                        if rule.wear_status == 'critical':
-                            logger.warning(
-                                f"Rule {rule.id}: wear limit reached, action={rule.wear_limit_action}"
-                            )
-                            if rule.wear_limit_action == 'STOP':
-                                # Request tool change
-                                self.driver.request_tool_change(rule.tool_number)
-                                continue
-                        
-                        # Send offset to controller via driver
-                        success = self._send_offset(rule, offset)
-                        
-                        # Record event
-                        status_str = calc_result['status']
-                        if hasattr(status_str, 'value'):
-                            status_str = status_str.value
-                        
-                        if not success:
-                            status_str = 'ERROR'
-                        
-                        CompensationEvent.objects.create(
-                            rule=rule,
-                            measurement_id=result.measurement_id,
-                            deviation_in=result.deviation,
-                            offset_calculated=calc_result['offset_calculated'],
-                            offset_applied=offset if success else 0,
-                            accumulated_before=rule.accumulated_offset,
-                            accumulated_after=rule.accumulated_offset + (offset if success else 0),
-                            status=status_str,
-                            reason=calc_result['reason'] if success else 'Controller communication failed',
-                        )
-                        
-                        # Update rule accumulated offset
-                        if success:
-                            rule.apply_offset(offset)
-                            result.compensation_triggered = True
-                            result.offset_sent = offset
-                        
-                        logger.info(
-                            f"Compensation: {result.feature_name} → T{rule.tool_number} "
-                            f"offset={offset:+.6f} [{status_str}]"
-                        )
-                    
-                    except Exception as e:
-                        logger.exception(f"Error processing compensation rule {rule.id}")
         
-        except Exception as e:
-            logger.exception("Error in compensation trigger")
+        return measurements
     
-    def _check_alarms(self, results: List[FeatureResult]):
-        """Only alarm when compensation can't recover — not on single bad parts."""
-        # Log out-of-tolerance parts but don't stop the machine.
-        # The machine only stops when:
-        #   - Wear limit is reached (handled in _trigger_compensation)
-        #   - Compensation repeatedly fails (future: consecutive fail counter)
-        alarm_features = [r for r in results if r.status == 'ALARM']
-        if alarm_features:
-            messages = [f"{r.feature_name}: {r.deviation:+.4f}" for r in alarm_features]
-            logger.warning(f"Out of tolerance (compensating): {', '.join(messages)}")
-    
-    def _send_offset(self, rule, offset: float) -> bool:
-        """Send offset to controller via driver."""
-        try:
-            return self.driver.write_offset(
-                tool=rule.tool_number,
-                axis=rule.offset_axis,
-                value=offset
+    def _emit_measurement_signals(
+        self,
+        measurements: List[Measurement],
+        feature_results: List[FeatureResult]
+    ):
+        """Emit signals for each measurement (compensation subscribes to these)."""
+        # Build lookup for feature results
+        result_by_feature_id = {r.feature_id: r for r in feature_results}
+        
+        for measurement in measurements:
+            feature_result = result_by_feature_id.get(measurement.feature_id)
+            
+            # Convert to mutable dict for signal handler to update
+            result_dict = {
+                'feature_id': measurement.feature_id,
+                'deviation': measurement.deviation,
+                'status': measurement.status,
+                'compensation_triggered': False,
+                'offset_sent': None,
+                'accumulated_after': None,
+                'usage_percentage': None,
+            }
+            
+            # Emit signal - compensation handler will process and update result_dict
+            measurement_captured.send(
+                sender=self.__class__,
+                measurement=measurement,
+                feature_result=result_dict
             )
-        except Exception as e:
-            logger.exception(f"Error sending offset to controller")
-            return False
+            
+            # Update the FeatureResult with compensation info
+            if feature_result and result_dict.get('compensation_triggered'):
+                feature_result.compensation_triggered = True
+                feature_result.offset_sent = result_dict.get('offset_sent')
+                feature_result.accumulated_after = result_dict.get('accumulated_after')
+                feature_result.usage_percentage = result_dict.get('usage_percentage')
     
     def _broadcast_result(self, result: CaptureResult):
         """Broadcast capture result via WebSocket."""

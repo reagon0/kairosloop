@@ -25,6 +25,12 @@ class OffsetMethod(models.TextChoices):
     MACRO = 'MACRO', 'Macro Variable'
 
 
+class ToolLimitAction(models.TextChoices):
+    """Action when tool reaches its compensation limit."""
+    ALARM = 'ALARM', 'Alarm (stop machine)'
+    WARNING = 'WARNING', 'Warning only (keep running)'
+
+
 class Machine(models.Model):
     """
     A machine/cell/station that KairosLoop monitors.
@@ -204,6 +210,14 @@ class ControllerConfig(models.Model):
     offset_write_delay_ms = models.IntegerField(
         default=50,
         help_text="Delay after writing offset before next operation"
+    )
+    
+    # === Tool Limit Behavior ===
+    on_tool_limit = models.CharField(
+        max_length=10,
+        choices=ToolLimitAction.choices,
+        default=ToolLimitAction.ALARM,
+        help_text="Action when tool reaches compensation limit (offsets are always blocked)"
     )
     
     # === State ===

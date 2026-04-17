@@ -49,11 +49,11 @@ class GaugeConsumer(AsyncWebsocketConsumer):
             **state
         }))
         
-        # Send initial simulation state
-        sim_state = await self.get_simulation_state()
+        # Send initial tool assignments state
+        tool_state = await self.get_tool_assignments_state()
         await self.send(text_data=json.dumps({
-            'type': 'simulation_state',
-            **sim_state
+            'type': 'tool_assignments_state',
+            'assignments': tool_state
         }))
     
     async def disconnect(self, close_code):
@@ -190,11 +190,11 @@ class GaugeConsumer(AsyncWebsocketConsumer):
                 await self.cmd_set_cycle_time(cycle_time)
                 await self.send_command_response(command, True, f'Cycle time set to {cycle_time}s')
             
-            elif command == 'get_simulation_state':
-                state = await self.get_simulation_state()
+            elif command == 'get_tool_assignments':
+                state = await self.get_tool_assignments_state()
                 await self.send(text_data=json.dumps({
-                    'type': 'simulation_state',
-                    **state
+                    'type': 'tool_assignments_state',
+                    'assignments': state
                 }))
             
             else:
@@ -295,43 +295,97 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     
     @sync_to_async
     def cmd_machine_change_tool(self, tool):
-        """Change a tool (reset wear)."""
+        """
+        Change a tool (reset tool assignment).
+        
+        This creates a new ToolAssignment record for historical tracking.
+        Also updates any CompensationRules to point to the new assignment.
+        """
         from simulator.plc import get_test_plc
+        from tooling.models import ToolAssignment
+        from controller.models import ControllerConfig
+        from compensation.models import CompensationRule
+        
         plc = get_test_plc()
         plc.operator_change_tool(tool)
+        
+        # Find and replace the active tool assignment for this position
+        # Get the test controller
+        controller = ControllerConfig.objects.filter(protocol='TEST').first()
+        if controller:
+            assignment = ToolAssignment.get_active(controller, tool)
+            if assignment:
+                # Get rules pointing to old assignment BEFORE replacing
+                old_assignment_id = assignment.id
+                
+                new_assignment = assignment.replace()
+                
+                # Update all CompensationRules that pointed to old assignment
+                updated = CompensationRule.objects.filter(
+                    tool_assignment_id=old_assignment_id
+                ).update(tool_assignment=new_assignment)
+                
+                if updated:
+                    print(f"[Tool Change] Updated {updated} compensation rule(s) to new assignment")
+                
+                # Broadcast the update
+                broadcast_tool_assignment_update(new_assignment)
+    
+    # =========================================================================
+    # TOOL ASSIGNMENT STATE
+    # =========================================================================
+    
+    @sync_to_async
+    def get_tool_assignments_state(self):
+        """Get current tool assignments for dashboard."""
+        from tooling.models import ToolAssignment, AssignmentStatus
+        
+        assignments = ToolAssignment.objects.filter(
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.WARNING, AssignmentStatus.CHANGE_REQUIRED]
+        ).select_related('tool_instance', 'tool_instance__tool_type', 'controller')
+        
+        return [
+            {
+                'id': a.id,
+                'uuid': str(a.uuid),
+                'tool_position': a.tool_position,
+                'tool_name': a.tool_instance.tool_type.name,
+                'controller_name': a.controller.name,
+                'accumulated_offset': a.accumulated_offset,
+                'usage_percentage': a.usage_percentage,
+                'max_offset': a.tool_instance.tool_type.max_offset_distance,
+                'status': a.status,
+                'installed_at': a.installed_at.isoformat(),
+                'cycle_count': a.cycle_count,
+            }
+            for a in assignments
+        ]
     
     # =========================================================================
     # SIMULATION COMMAND IMPLEMENTATIONS
     # =========================================================================
     
     @sync_to_async
-    def get_simulation_state(self):
-        """Get current simulation state."""
-        from simulator.plc import get_test_plc
-        from simulator.tool_wear import get_tool_wear_simulation
-        
-        plc = get_test_plc()
-        tool_wear = get_tool_wear_simulation()
-        
-        return {
-            'enabled': plc.simulation_enabled,
-            'cycle_time': plc.cycle_time,
-            'tool_wear': tool_wear.get_state(),
-        }
-    
-    @sync_to_async
     def cmd_simulation_start(self):
         """Start the full simulation loop."""
         from simulator.plc import get_test_plc
         from simulator.tool_wear import get_tool_wear_simulation
-        from dashboard.consumers import broadcast_machine_state, broadcast_simulation_state
+        from dashboard.consumers import broadcast_machine_state
+        
+        # Check if configuration is valid before starting
+        try:
+            from simulator.seed import is_valid, get_missing
+            if not is_valid():
+                missing = get_missing()
+                raise Exception(f"Configuration incomplete: {', '.join(missing)}")
+        except ImportError:
+            pass  # seed module not available, skip validation
         
         plc = get_test_plc()
         tool_wear = get_tool_wear_simulation()
         
         # Wire callbacks
         plc.set_state_callback(broadcast_machine_state)
-        tool_wear.set_change_callback(broadcast_simulation_state)
         
         # Enable simulation and start
         plc.enable_simulation(tool_wear)
@@ -361,22 +415,51 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     
     @sync_to_async
     def cmd_simulation_reset(self):
-        """Reset the simulation."""
+        """Reset the simulation and clear database."""
         from simulator.plc import get_test_plc
         from simulator.tool_wear import get_tool_wear_simulation
+        from measurement.models import Measurement
+        from compensation.models import CompensationEvent
+        from tooling.models import ToolAssignment, AssignmentStatus
         
         plc = get_test_plc()
         tool_wear = get_tool_wear_simulation()
         
+        # Stop simulation
         plc.operator_stop()
         plc.disable_simulation()
         tool_wear.reset_all()
         plc.operator_reset_part_count()
         
-        # Reset tool offsets
+        # Reset tool offsets in PLC
         for t in range(1, 11):
             plc._tool_offsets[t] = {'X': 0.0, 'Y': 0.0, 'Z': 0.0}
             plc._tool_wear[t] = 0.0
+        
+        # Clear database
+        Measurement.objects.all().delete()
+        CompensationEvent.objects.all().delete()
+        
+        # Reset tool assignments (keep them, just reset counters)
+        ToolAssignment.objects.filter(
+            status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.WARNING, AssignmentStatus.CHANGE_REQUIRED]
+        ).update(
+            accumulated_offset=0.0,
+            cycle_count=0,
+            status=AssignmentStatus.ACTIVE
+        )
+        
+        # Also reset tool instances
+        from tooling.models import ToolInstance, InstanceStatus
+        ToolInstance.objects.filter(status=InstanceStatus.IN_USE).update(
+            total_parts_cut=0,
+            total_accumulated_wear=0.0
+        )
+        
+        # Broadcast state (alarm may still be active - operator must clear it)
+        plc._broadcast_state()
+        
+        print("[Reset] Simulation and database cleared")
     
     @sync_to_async
     def cmd_set_cycle_time(self, cycle_time):
@@ -411,6 +494,10 @@ class GaugeConsumer(AsyncWebsocketConsumer):
     
     async def simulation_state(self, event):
         """Send simulation state update to WebSocket client."""
+        await self.send(text_data=json.dumps(event))
+    
+    async def tool_assignment_update(self, event):
+        """Send tool assignment update to WebSocket client."""
         await self.send(text_data=json.dumps(event))
 
 
@@ -486,14 +573,28 @@ def broadcast_machine_state(state: dict):
     )
 
 
-def broadcast_simulation_state(state: dict):
-    """Broadcast simulation state to all connected clients."""
+def broadcast_tool_assignment_update(assignment):
+    """Broadcast tool assignment update to all connected clients."""
     channel_layer = get_channel_layer()
+    
+    tool_type = assignment.tool_instance.tool_type
     
     async_to_sync(channel_layer.group_send)(
         'gauge_all',
         {
-            'type': 'simulation_state',
-            'tool_wear': state
+            'type': 'tool_assignment_update',
+            'tool_assignment': {
+                'id': assignment.id,
+                'uuid': str(assignment.uuid),
+                'tool_position': assignment.tool_position,
+                'tool_name': tool_type.name,
+                'controller_name': assignment.controller.name,
+                'accumulated_offset': assignment.accumulated_offset,
+                'usage_percentage': assignment.usage_percentage,
+                'max_offset': tool_type.max_offset_distance,
+                'status': assignment.status,
+                'installed_at': assignment.installed_at.isoformat(),
+                'cycle_count': assignment.cycle_count,
+            }
         }
     )

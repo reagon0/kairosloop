@@ -33,7 +33,8 @@ INSTALLED_APPS = [
     'measurement',   # Measurement configuration UI
     'compensation',  # Compensation configuration UI
     'controller',    # Controller configuration UI
-    'simulator'
+    'simulator',
+    'tooling',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +59,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dashboard.context_processors.machine_context',  # Add this line
             ],
         },
     },
