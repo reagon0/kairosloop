@@ -428,12 +428,3 @@ class ToolAssignment(models.Model):
             tool_position=tool_position,
             status=AssignmentStatus.ACTIVE,
         )
-
-
-# =============================================================================
-# BACKWARDS COMPATIBILITY ALIASES
-# =============================================================================
-
-# Keep old names working during migration
-Tool = ToolType
-ToolStatus = AssignmentStatus

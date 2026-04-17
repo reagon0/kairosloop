@@ -48,29 +48,11 @@ class CompensationRule(models.Model):
         help_text="Feature to monitor for compensation"
     )
     
-    # NEW: Link to ToolAssignment instead of separate controller + tool_number
     tool_assignment = models.ForeignKey(
         'tooling.ToolAssignment',
         on_delete=models.CASCADE,
         related_name='compensation_rules',
-        null=True,  # Nullable during migration
-        blank=True,
         help_text="Tool assignment to send offsets to"
-    )
-    
-    # DEPRECATED: Keep for migration, will be removed
-    controller = models.ForeignKey(
-        'controller.ControllerConfig',
-        on_delete=models.CASCADE,
-        related_name='compensation_rules',
-        null=True,
-        blank=True,
-        help_text="DEPRECATED - use tool_assignment"
-    )
-    tool_number = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="DEPRECATED - use tool_assignment"
     )
     
     # === Offset Settings ===
@@ -115,36 +97,11 @@ class CompensationRule(models.Model):
         default=0.8,
         help_text="Warn when accumulated offset reaches this fraction of tool limit (0.0-1.0)"
     )
-    
-    # DEPRECATED: These move to Tool and ToolAssignment
-    wear_limit = models.FloatField(
-        default=0.050,
-        null=True,
-        blank=True,
-        help_text="DEPRECATED - use Tool.max_offset_distance"
-    )
     wear_limit_action = models.CharField(
         max_length=5,
         choices=WearLimitAction.choices,
         default=WearLimitAction.ALERT,
         help_text="Action when wear limit is reached"
-    )
-    accumulated_offset = models.FloatField(
-        default=0,
-        null=True,
-        blank=True,
-        help_text="DEPRECATED - use ToolAssignment.accumulated_offset"
-    )
-    last_adjustment = models.FloatField(
-        default=0,
-        null=True,
-        blank=True,
-        help_text="DEPRECATED"
-    )
-    last_adjustment_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="DEPRECATED"
     )
     
     # === State ===
@@ -163,35 +120,22 @@ class CompensationRule(models.Model):
         ordering = ['feature__name']
     
     def __str__(self):
-        if self.tool_assignment:
-            return f"{self.feature.name} → T{self.tool_assignment.tool_position} ({self.tool_assignment.controller.name})"
-        elif self.controller and self.tool_number:
-            return f"{self.feature.name} → T{self.tool_number} ({self.controller.name}) [LEGACY]"
-        return f"{self.feature.name} → [No tool assigned]"
+        return f"{self.feature.name} → T{self.tool_assignment.tool_position} ({self.tool_assignment.controller.name})"
     
     @property
-    def effective_tool_position(self) -> int:
-        """Get tool position from assignment or legacy field."""
-        if self.tool_assignment:
-            return self.tool_assignment.tool_position
-        return self.tool_number or 0
+    def tool_position(self) -> int:
+        """Get tool position from assignment."""
+        return self.tool_assignment.tool_position
     
     @property
-    def effective_controller(self):
-        """Get controller from assignment or legacy field."""
-        if self.tool_assignment:
-            return self.tool_assignment.controller
-        return self.controller
+    def controller(self):
+        """Get controller from assignment."""
+        return self.tool_assignment.controller
     
     @property
     def wear_percentage(self) -> float:
         """Percentage of tool limit used."""
-        if self.tool_assignment:
-            return self.tool_assignment.usage_percentage
-        # Legacy fallback
-        if self.wear_limit and self.wear_limit > 0:
-            return abs(self.accumulated_offset or 0) / self.wear_limit * 100
-        return 0
+        return self.tool_assignment.usage_percentage
     
     @property
     def wear_status(self) -> str:
@@ -245,27 +189,6 @@ class CompensationRule(models.Model):
         
         result['should_compensate'] = True
         return result
-    
-    # DEPRECATED methods - kept for backward compatibility during migration
-    def apply_offset(self, offset_value: float):
-        """DEPRECATED: Use ToolAssignment.apply_offset instead."""
-        if self.tool_assignment:
-            self.tool_assignment.apply_offset(offset_value)
-        else:
-            # Legacy behavior
-            self.accumulated_offset = (self.accumulated_offset or 0) + offset_value
-            self.last_adjustment = offset_value
-            self.last_adjustment_at = timezone.now()
-            self.save(update_fields=['accumulated_offset', 'last_adjustment', 'last_adjustment_at', 'updated_at'])
-    
-    def reset_accumulated(self):
-        """DEPRECATED: Use ToolAssignment.replace() instead."""
-        if self.tool_assignment:
-            self.tool_assignment.replace()
-        else:
-            self.accumulated_offset = 0
-            self.last_adjustment = 0
-            self.save(update_fields=['accumulated_offset', 'last_adjustment', 'updated_at'])
 
 
 class CompensationEvent(models.Model):
@@ -332,8 +255,7 @@ class CompensationEvent(models.Model):
         ]
     
     def __str__(self):
-        tool_pos = self.rule.effective_tool_position
-        return f"{self.rule.feature.name} T{tool_pos}: {self.offset_applied:+.4f} [{self.status}]"
+        return f"{self.rule.feature.name} T{self.rule.tool_position}: {self.offset_applied:+.4f} [{self.status}]"
     
     @classmethod
     def create_from_calculation(
@@ -344,10 +266,7 @@ class CompensationEvent(models.Model):
         calc_result: dict
     ) -> 'CompensationEvent':
         """Create event from calculation result."""
-        if rule.tool_assignment:
-            accumulated_before = abs(rule.tool_assignment.accumulated_offset)
-        else:
-            accumulated_before = abs(rule.accumulated_offset or 0)
+        accumulated_before = abs(rule.tool_assignment.accumulated_offset)
         
         # Handle status - could be enum or string
         status = calc_result['status']

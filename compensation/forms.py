@@ -13,23 +13,18 @@ class CompensationRuleForm(forms.ModelForm):
     class Meta:
         model = CompensationRule
         fields = [
-            'feature', 'controller',
-            'tool_number', 'offset_register', 'offset_axis', 'offset_direction',
+            'feature', 'tool_assignment',
+            'offset_register', 'offset_axis', 'offset_direction',
             'trigger_mode', 'trigger_threshold', 'sample_count',
-            'max_per_cycle', 'wear_limit', 'wear_limit_action',
+            'max_per_cycle', 'warning_threshold', 'wear_limit_action',
             'active',
         ]
         widgets = {
             'feature': forms.Select(attrs={
                 'class': 'form-select'
             }),
-            'controller': forms.Select(attrs={
+            'tool_assignment': forms.Select(attrs={
                 'class': 'form-select'
-            }),
-            'tool_number': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'min': 1,
-                'placeholder': 'e.g., 1 for T01'
             }),
             'offset_register': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -59,10 +54,12 @@ class CompensationRuleForm(forms.ModelForm):
                 'step': 'any',
                 'placeholder': '0.010'
             }),
-            'wear_limit': forms.NumberInput(attrs={
+            'warning_threshold': forms.NumberInput(attrs={
                 'class': 'form-input',
                 'step': 'any',
-                'placeholder': '0.050'
+                'min': 0,
+                'max': 1,
+                'placeholder': '0.8'
             }),
             'wear_limit_action': forms.Select(attrs={
                 'class': 'form-select'
@@ -75,9 +72,14 @@ class CompensationRuleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Only show active features and controllers
+        # Only show active features
         from measurement.models import Feature
-        from controller.models import ControllerConfig
-        
         self.fields['feature'].queryset = Feature.objects.filter(active=True).order_by('name')
-        self.fields['controller'].queryset = ControllerConfig.objects.filter(active=True).order_by('name')
+        
+        # Only show active tool assignments (not replaced)
+        from tooling.models import ToolAssignment, AssignmentStatus
+        self.fields['tool_assignment'].queryset = ToolAssignment.objects.exclude(
+            status=AssignmentStatus.REPLACED
+        ).select_related(
+            'tool_instance__tool_type', 'controller'
+        ).order_by('controller__name', 'tool_position')

@@ -116,7 +116,7 @@ def dashboard(request):
             'last_deviation': last_measurement.deviation if last_measurement else None,
         })
     
-    # Get active tool assignments (NEW - replaces compensation rules for wear display)
+    # Get active tool assignments
     tool_assignments_config = []
     try:
         from tooling.models import ToolAssignment, AssignmentStatus
@@ -152,44 +152,26 @@ def dashboard(request):
     # Build compensation config
     compensation_config = []
     for rule in compensation_rules:
-        if rule.tool_assignment:
-            assignment = rule.tool_assignment
-            tool_type = assignment.tool_instance.tool_type
-            compensation_config.append({
-                'id': rule.id,
-                'feature_name': rule.feature.name,
-                'tool_assignment_id': assignment.id,
-                'tool_position': assignment.tool_position,
-                'tool_name': tool_type.name,
-                'controller_name': assignment.controller.name,
-                'offset_axis': rule.offset_axis,
-                'trigger_threshold': rule.trigger_threshold,
-                'max_per_cycle': rule.max_per_cycle,
-                'warning_threshold': rule.warning_threshold,
-                # From tool assignment
-                'accumulated_offset': assignment.accumulated_offset,
-                'max_offset': tool_type.max_offset_distance,
-                'usage_percentage': assignment.usage_percentage,
-                'status': assignment.status,
-            })
-        else:
-            # Legacy support
-            compensation_config.append({
-                'id': rule.id,
-                'feature_name': rule.feature.name,
-                'tool_assignment_id': None,
-                'tool_position': rule.tool_number,
-                'tool_name': f'T{rule.tool_number}',
-                'controller_name': rule.controller.name if rule.controller else 'Unknown',
-                'offset_axis': rule.offset_axis,
-                'trigger_threshold': rule.trigger_threshold,
-                'max_per_cycle': rule.max_per_cycle,
-                'warning_threshold': rule.warning_threshold,
-                'accumulated_offset': rule.accumulated_offset or 0,
-                'max_offset': rule.wear_limit or 0.1,
-                'usage_percentage': rule.wear_percentage,
-                'status': rule.wear_status,
-            })
+        # tool_assignment is now required, no legacy fallback needed
+        assignment = rule.tool_assignment
+        tool_type = assignment.tool_instance.tool_type
+        compensation_config.append({
+            'id': rule.id,
+            'feature_name': rule.feature.name,
+            'tool_assignment_id': assignment.id,
+            'tool_position': assignment.tool_position,
+            'tool_name': tool_type.name,
+            'controller_name': assignment.controller.name,
+            'offset_axis': rule.offset_axis,
+            'trigger_threshold': rule.trigger_threshold,
+            'max_per_cycle': rule.max_per_cycle,
+            'warning_threshold': rule.warning_threshold,
+            # From tool assignment
+            'accumulated_offset': assignment.accumulated_offset,
+            'max_offset': tool_type.max_offset_distance,
+            'usage_percentage': assignment.usage_percentage,
+            'status': assignment.status,
+        })
     
     # Get recent compensation events
     recent_events = CompensationEvent.objects.select_related(
@@ -198,7 +180,8 @@ def dashboard(request):
     
     events_list = []
     for e in recent_events:
-        tool_pos = e.rule.effective_tool_position
+        # Use the property which gets position from tool_assignment
+        tool_pos = e.rule.tool_position
         events_list.append({
             'id': e.id,
             'feature_name': e.rule.feature.name,
@@ -288,10 +271,9 @@ def dashboard(request):
     }
     return render(request, 'dashboard/dashboard.html', context)
 
-from django.shortcuts import render
+
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.contrib import messages
  
 from controller.models import ControllerConfig, Machine
 from measurement.models import GaugeConfig, ChannelConfig, Feature, FeatureInput
@@ -301,6 +283,27 @@ from tooling.models import ToolType, ToolInstance, ToolAssignment, AssignmentSta
  
 def setup(request):
     """Main setup page showing full configuration hierarchy."""
+    
+    # =========================================================================
+    # SELECTION HANDLING
+    # =========================================================================
+    selected_type = request.GET.get('type')
+    selected_id = request.GET.get('id')
+    
+    # Convert id to int if present
+    if selected_id:
+        try:
+            selected_id = int(selected_id)
+        except (ValueError, TypeError):
+            selected_id = None
+    
+    # Initialize selected objects
+    selected_machine = None
+    selected_controller = None
+    selected_gauge = None
+    selected_feature = None
+    selected_tool = None
+    selected_rule = None
     
     # =========================================================================
     # MACHINE & CONTROLLER
@@ -317,7 +320,7 @@ def setup(request):
     # FEATURES
     # =========================================================================
     features = Feature.objects.prefetch_related(
-    'inputs'
+        'inputs'
     ).all().order_by('-active', 'name')
     
     # =========================================================================
@@ -338,6 +341,25 @@ def setup(request):
         'tool_assignment__tool_instance__tool_type',
         'tool_assignment__controller'
     ).all().order_by('-active', 'feature__name')
+    
+    # =========================================================================
+    # FETCH SELECTED OBJECT
+    # =========================================================================
+    if selected_type and selected_id:
+        if selected_type == 'machine':
+            selected_machine = machines.filter(id=selected_id).first()
+        elif selected_type == 'controller':
+            selected_controller = ControllerConfig.objects.select_related('machine').prefetch_related(
+                'tool_assignments__tool_instance__tool_type'
+            ).filter(id=selected_id).first()
+        elif selected_type == 'gauge':
+            selected_gauge = gauges.filter(id=selected_id).first()
+        elif selected_type == 'feature':
+            selected_feature = features.filter(id=selected_id).first()
+        elif selected_type == 'tool':
+            selected_tool = tool_assignments.filter(id=selected_id).first()
+        elif selected_type == 'rule':
+            selected_rule = compensation_rules.filter(id=selected_id).first()
     
     # =========================================================================
     # VALIDATION WARNINGS
@@ -435,6 +457,16 @@ def setup(request):
         'warnings': warnings,
         'error_count': len([w for w in warnings if w['level'] == 'error']),
         'warning_count': len([w for w in warnings if w['level'] == 'warning']),
+        
+        # Selection state
+        'selected_type': selected_type,
+        'selected_id': selected_id,
+        'selected_machine': selected_machine,
+        'selected_controller': selected_controller,
+        'selected_gauge': selected_gauge,
+        'selected_feature': selected_feature,
+        'selected_tool': selected_tool,
+        'selected_rule': selected_rule,
     }
     
     return render(request, 'dashboard/setup.html', context)
@@ -502,4 +534,3 @@ def toggle_gauge(request, gauge_id):
         })
     except GaugeConfig.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Gauge not found'}, status=404)
- 

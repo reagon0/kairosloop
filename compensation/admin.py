@@ -5,8 +5,13 @@ from .models import CompensationRule, CompensationEvent
 
 @admin.register(CompensationRule)
 class CompensationRuleAdmin(admin.ModelAdmin):
-    list_display = ['feature', 'controller', 'tool_number', 'trigger_mode', 'active', 'accumulated_offset']
-    list_filter = ['active', 'trigger_mode', 'controller']
+    list_display = ['feature', 'tool_assignment', 'trigger_mode', 'active', 'wear_status']
+    list_filter = ['active', 'trigger_mode', 'tool_assignment__controller']
+    
+    @admin.display(description='Wear')
+    def wear_status(self, obj):
+        pct = obj.wear_percentage
+        return f"{pct:.0f}%"
 
 
 @admin.register(CompensationEvent)

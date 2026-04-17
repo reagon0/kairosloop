@@ -3,10 +3,12 @@
 Seed data for testing the simulation.
 
 Creates all required objects for a working simulation:
+- GaugeConfig (N1700 gauge with 2 channels)
+- Feature (OD Diameter with 2-probe average)
 - ToolType (insert definition)
 - ToolInstance (physical insert)
 - ToolAssignment (loaded in machine)
-- Links CompensationRule to the assignment
+- CompensationRule (links feature to tool assignment)
 
 Usage:
     python manage.py shell
@@ -51,7 +53,15 @@ def validate() -> List[ValidationResult]:
     else:
         results.append(ValidationResult(False, "No TEST controller found", "Run seed_all() to create"))
     
-    # 2. Check ToolType exists
+    # 2. Check GaugeConfig exists
+    from measurement.models import GaugeConfig
+    gauges = GaugeConfig.objects.filter(active=True)
+    if gauges.exists():
+        results.append(ValidationResult(True, f"{gauges.count()} Gauge(s) configured"))
+    else:
+        results.append(ValidationResult(False, "No Gauges configured", "Run seed_all() to create"))
+    
+    # 3. Check ToolType exists
     from tooling.models import ToolType
     tool_types = ToolType.objects.filter(active=True)
     if tool_types.exists():
@@ -60,7 +70,7 @@ def validate() -> List[ValidationResult]:
     else:
         results.append(ValidationResult(False, "No ToolTypes defined", "Run seed_all() to create"))
     
-    # 3. Check ToolInstance exists and is IN_USE
+    # 4. Check ToolInstance exists and is IN_USE
     from tooling.models import ToolInstance, InstanceStatus
     instances = ToolInstance.objects.filter(status=InstanceStatus.IN_USE)
     if instances.exists():
@@ -68,7 +78,7 @@ def validate() -> List[ValidationResult]:
     else:
         results.append(ValidationResult(False, "No ToolInstances in use", "Run seed_all() to create"))
     
-    # 4. Check ToolAssignment exists and is active
+    # 5. Check ToolAssignment exists and is active
     from tooling.models import ToolAssignment, AssignmentStatus
     assignments = ToolAssignment.objects.filter(
         status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.WARNING, AssignmentStatus.CHANGE_REQUIRED]
@@ -83,38 +93,21 @@ def validate() -> List[ValidationResult]:
     else:
         results.append(ValidationResult(False, "No active ToolAssignments", "Run seed_all() to create"))
     
-    # 5. Check Feature exists
+    # 6. Check Feature exists
     from measurement.models import Feature
     features = Feature.objects.filter(active=True)
     if features.exists():
         results.append(ValidationResult(True, f"{features.count()} Feature(s) defined"))
     else:
-        results.append(ValidationResult(False, "No Features defined", "Create in /measurement/"))
+        results.append(ValidationResult(False, "No Features defined", "Run seed_all() to create"))
     
-    # 6. Check CompensationRule exists and has tool_assignment
+    # 7. Check CompensationRule exists and has tool_assignment
     from compensation.models import CompensationRule
     rules = CompensationRule.objects.filter(active=True)
     if rules.exists():
-        linked = rules.exclude(tool_assignment__isnull=True).count()
-        unlinked = rules.filter(tool_assignment__isnull=True).count()
-        if unlinked > 0:
-            results.append(ValidationResult(
-                False, 
-                f"{unlinked} CompensationRule(s) missing tool_assignment",
-                "Run seed_all() to link"
-            ))
-        else:
-            results.append(ValidationResult(True, f"{linked} CompensationRule(s) linked"))
+        results.append(ValidationResult(True, f"{rules.count()} CompensationRule(s) linked"))
     else:
-        results.append(ValidationResult(False, "No CompensationRules defined", "Create in /compensation/"))
-    
-    # 7. Check GaugeConfig exists
-    from measurement.models import GaugeConfig
-    gauges = GaugeConfig.objects.filter(active=True)
-    if gauges.exists():
-        results.append(ValidationResult(True, f"{gauges.count()} Gauge(s) configured"))
-    else:
-        results.append(ValidationResult(False, "No Gauges configured", "Create in /measurement/"))
+        results.append(ValidationResult(False, "No CompensationRules defined", "Run seed_all() to create"))
     
     return results
 
@@ -170,20 +163,61 @@ def seed_all(force: bool = False):
     
     print("\nSeeding simulation data...")
     
-    # 1. Ensure ControllerConfig exists
+    # =========================================================================
+    # 1. Controller
+    # =========================================================================
     from controller.models import ControllerConfig
     controller, created = ControllerConfig.objects.get_or_create(
         protocol='TEST',
         defaults={
             'name': 'Test CNC (Simulated)',
+            'controller_type': 'test',
             'host': 'localhost',
             'port': 8193,
-            'enabled': True,
+            'active': True,
         }
     )
     print(f"  {'Created' if created else 'Found'} controller: {controller.name}")
     
-    # 2. Create ToolType
+    # =========================================================================
+    # 2. Gauge + Channels
+    # =========================================================================
+    from measurement.models import GaugeConfig, ChannelConfig
+    
+    gauge, created = GaugeConfig.objects.get_or_create(
+        name='Marposs N1700',
+        defaults={
+            'driver_type': 'n1700',
+            'filter_level': 5,
+            'active': True,
+        }
+    )
+    print(f"  {'Created' if created else 'Found'} gauge: {gauge.name}")
+    
+    # Create channels
+    ch1, created = ChannelConfig.objects.get_or_create(
+        gauge=gauge,
+        channel_index=0,
+        defaults={
+            'name': 'OD Probe Left',
+            'enabled': True,
+        }
+    )
+    print(f"  {'Created' if created else 'Found'} channel: CH1 {ch1.name}")
+    
+    ch2, created = ChannelConfig.objects.get_or_create(
+        gauge=gauge,
+        channel_index=1,
+        defaults={
+            'name': 'OD Probe Right',
+            'enabled': True,
+        }
+    )
+    print(f"  {'Created' if created else 'Found'} channel: CH2 {ch2.name}")
+    
+    # =========================================================================
+    # 3. ToolType
+    # =========================================================================
     from tooling.models import ToolType
     tool_type, created = ToolType.objects.get_or_create(
         name='OD Roughing Insert',
@@ -197,7 +231,9 @@ def seed_all(force: bool = False):
     )
     print(f"  {'Created' if created else 'Found'} tool type: {tool_type.name}")
     
-    # 3. Create ToolInstance (only if none in use)
+    # =========================================================================
+    # 4. ToolInstance
+    # =========================================================================
     from tooling.models import ToolInstance, InstanceStatus
     instance = ToolInstance.objects.filter(
         tool_type=tool_type,
@@ -209,11 +245,13 @@ def seed_all(force: bool = False):
             tool_type=tool_type,
             status=InstanceStatus.IN_USE,
         )
-        print(f"  Created tool instance: {instance.uuid}")
+        print(f"  Created tool instance: {str(instance.uuid)[:8]}")
     else:
-        print(f"  Found tool instance: {instance.uuid}")
+        print(f"  Found tool instance: {str(instance.uuid)[:8]}")
     
-    # 4. Create ToolAssignment (only if none active for T1)
+    # =========================================================================
+    # 5. ToolAssignment
+    # =========================================================================
     from tooling.models import ToolAssignment, AssignmentStatus
     assignment = ToolAssignment.objects.filter(
         controller=controller,
@@ -232,38 +270,63 @@ def seed_all(force: bool = False):
     else:
         print(f"  Found assignment: T{assignment.tool_position} @ {controller.name}")
     
-    # 5. Link CompensationRules to assignment
-    from compensation.models import CompensationRule
-    unlinked_rules = CompensationRule.objects.filter(
-        active=True,
-        tool_assignment__isnull=True
-    )
+    # =========================================================================
+    # 6. Feature + Inputs
+    # =========================================================================
+    from measurement.models import Feature, FeatureInput, FeatureType, ToleranceMode, Unit
     
-    if unlinked_rules.exists():
-        updated = unlinked_rules.update(tool_assignment=assignment)
-        print(f"  Linked {updated} compensation rule(s) to assignment")
-    else:
-        # Check if any rules exist
-        rules = CompensationRule.objects.filter(active=True)
-        if rules.exists():
-            print(f"  {rules.count()} compensation rule(s) already linked")
-        else:
-            # Create a default rule if Feature exists
-            from measurement.models import Feature
-            feature = Feature.objects.filter(active=True).first()
-            if feature:
-                rule = CompensationRule.objects.create(
-                    feature=feature,
-                    tool_assignment=assignment,
-                    offset_axis='X',
-                    trigger_threshold=0.005,
-                    max_per_cycle=0.010,
-                    warning_threshold=0.8,
-                    active=True,
-                )
-                print(f"  Created compensation rule for {feature.name}")
-            else:
-                print("  ⚠ No features found - create one first")
+    feature, created = Feature.objects.get_or_create(
+        name='OD Diameter',
+        defaults={
+            'description': 'Outside diameter measured with 2 probes',
+            'feature_type': FeatureType.DIAMETER,
+            'formula': '(A + B) / 2',
+            'tolerance_mode': ToleranceMode.BILATERAL,
+            'nominal': 12.7,
+            'tolerance_upper': 0.025,
+            'tolerance_lower': 0.025,
+            'warning_percent': 80,
+            'unit': Unit.MM,
+            'resolution': 4,
+            'tool_type': tool_type,
+            'active': True,
+        }
+    )
+    print(f"  {'Created' if created else 'Found'} feature: {feature.name}")
+    
+    # Create feature inputs (A → CH0, B → CH1)
+    input_a, created = FeatureInput.objects.get_or_create(
+        feature=feature,
+        label='A',
+        defaults={'channel_index': 0}
+    )
+    print(f"  {'Created' if created else 'Found'} input: A → CH1")
+    
+    input_b, created = FeatureInput.objects.get_or_create(
+        feature=feature,
+        label='B',
+        defaults={'channel_index': 1}
+    )
+    print(f"  {'Created' if created else 'Found'} input: B → CH2")
+    
+    # =========================================================================
+    # 7. CompensationRule
+    # =========================================================================
+    from compensation.models import CompensationRule
+    
+    rule, created = CompensationRule.objects.get_or_create(
+        feature=feature,
+        tool_assignment=assignment,
+        defaults={
+            'offset_axis': 'X',
+            'offset_direction': -1.0,
+            'trigger_threshold': 0.005,
+            'max_per_cycle': 0.010,
+            'warning_threshold': 0.8,
+            'active': True,
+        }
+    )
+    print(f"  {'Created' if created else 'Found'} compensation rule: {feature.name} → T1")
     
     print("\nSeed complete!")
     print_validation()
@@ -273,12 +336,12 @@ def reset_all():
     """
     Reset all simulation data.
     
-    WARNING: This deletes measurements, events, and assignments!
+    WARNING: This deletes measurements, events, assignments, features, gauges!
     """
     print("\nResetting simulation data...")
     
-    from measurement.models import Measurement
-    from compensation.models import CompensationEvent
+    from measurement.models import Measurement, FeatureInput, Feature, ChannelConfig, GaugeConfig
+    from compensation.models import CompensationEvent, CompensationRule
     from tooling.models import ToolAssignment, ToolInstance
     
     # Delete in order (respecting FK constraints)
@@ -288,20 +351,35 @@ def reset_all():
     e_count = CompensationEvent.objects.all().delete()[0]
     print(f"  Deleted {e_count} compensation events")
     
+    r_count = CompensationRule.objects.all().delete()[0]
+    print(f"  Deleted {r_count} compensation rules")
+    
+    i_count = FeatureInput.objects.all().delete()[0]
+    print(f"  Deleted {i_count} feature inputs")
+    
+    f_count = Feature.objects.all().delete()[0]
+    print(f"  Deleted {f_count} features")
+    
+    c_count = ChannelConfig.objects.all().delete()[0]
+    print(f"  Deleted {c_count} channels")
+    
+    g_count = GaugeConfig.objects.all().delete()[0]
+    print(f"  Deleted {g_count} gauges")
+    
     a_count = ToolAssignment.objects.all().delete()[0]
     print(f"  Deleted {a_count} tool assignments")
     
-    i_count = ToolInstance.objects.all().delete()[0]
-    print(f"  Deleted {i_count} tool instances")
+    ti_count = ToolInstance.objects.all().delete()[0]
+    print(f"  Deleted {ti_count} tool instances")
     
     print("Reset complete!\n")
 
 
 def reset_wear():
     """
-    Reset just the wear tracking (keep assignments, clear accumulated offset).
+    Reset just the wear tracking (keep config, clear runtime data).
     """
-    from tooling.models import ToolAssignment, AssignmentStatus
+    from tooling.models import ToolAssignment, AssignmentStatus, ToolInstance
     from measurement.models import Measurement
     from compensation.models import CompensationEvent
     
@@ -316,6 +394,12 @@ def reset_wear():
         accumulated_offset=0.0,
         cycle_count=0,
         status=AssignmentStatus.ACTIVE
+    )
+    
+    # Reset instances
+    ToolInstance.objects.all().update(
+        total_parts_cut=0,
+        total_accumulated_wear=0.0
     )
     
     print("Wear tracking reset!")
